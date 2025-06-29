@@ -11,19 +11,22 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
 import com.example.a24.ui.composables.AppBar
 import com.example.a24.ui.screens.HomeScreen
+import com.example.a24.ui.screens.LoginScreen
 import com.example.a24.ui.theme.AppTheme
 
 class MainActivity : ComponentActivity() {
+    @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             AppTheme {
                 Scaffold(
-                    modifier = Modifier.fillMaxSize(),
-
+                    modifier = Modifier.fillMaxSize()
                 ) {
-                    HomeScreen()
+                    AppNavigation()
+                    //HomeScreen()
+                    //LoginScreen()
                 }
 
             }

@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavHostController
 import com.example.a24.ui.composables.AppBar
 import com.example.a24.ui.composables.ProductivityStreakSection
 import com.example.a24.ui.composables.SectionHeader
@@ -26,7 +27,7 @@ import com.example.a24.ui.theme.secondaryLight
 import com.example.a24.ui.theme.tertiaryLight
 
 @Composable
-fun HomeScreen(){
+fun HomeScreen(navController: NavHostController) {
     AppTheme {
         Column(
             modifier = Modifier

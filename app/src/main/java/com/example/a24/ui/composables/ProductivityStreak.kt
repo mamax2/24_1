@@ -23,6 +23,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.a24.ui.theme.secondaryLight
 
+var progress=0
+
+fun addProgress(){
+    progress++
+}
+
 @Composable
 fun ProductivityStreakSection() {
     Column(
@@ -75,12 +81,12 @@ fun ProductivityStreakSection() {
 
         // Barra di progresso
         LinearProgressIndicator(
-            progress = 0.7f,
-            color = Color.Black,
-            backgroundColor = Color.Gray,
+            progress = { 0.7f },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(8.dp)
+                .height(8.dp),
+            color = Color.Black,
+            trackColor = Color.Gray,
         )
 
         // Bottone "+" per aggiungere task
