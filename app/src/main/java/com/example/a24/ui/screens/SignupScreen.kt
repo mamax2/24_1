@@ -48,7 +48,7 @@ fun SignupScreen(navController: NavHostController){
             modifier = Modifier
                 .fillMaxSize()
         ) {
-            AppBar()
+            AppBar(currentRoute = "signup", navController = navController)
             Spacer(modifier = Modifier.height(16.dp))
 
             SectionHeader(text = "Sign Up")

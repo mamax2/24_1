@@ -48,7 +48,7 @@ fun LoginScreen(navController: NavHostController){
             modifier = Modifier
                 .fillMaxSize()
         ) {
-            AppBar()
+            AppBar(currentRoute = "login", navController = navController)
             Spacer(modifier = Modifier.height(16.dp))
 
             SectionHeader(text = "Login")

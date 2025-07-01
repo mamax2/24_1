@@ -61,5 +61,15 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
     implementation (platform(libs.firebase.bom.v3270))
     implementation(libs.google.firebase.auth.ktx)
+    implementation (libs.coil.compose)
+    implementation (libs.androidx.activity.compose.v180)
+    implementation (libs.androidx.lifecycle.viewmodel.compose)
+    implementation (libs.androidx.lifecycle.runtime.compose)
+    implementation (libs.androidx.navigation.compose.v270)
+    implementation (libs.androidx.room.runtime)
+    implementation (libs.androidx.room.ktx)
+    implementation (libs.androidx.room.compiler)
+    implementation (libs.kotlinx.coroutines.android)
+
 }
 

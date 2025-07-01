@@ -33,7 +33,7 @@ fun HomeScreen(navController: NavHostController) {
             modifier = Modifier
                 .fillMaxSize()
         ) {
-            AppBar()
+            AppBar(currentRoute = "home", navController = navController)
             Spacer(modifier = Modifier.height(16.dp))
 
             // Sezione "Hai qualcosa da fare?"
