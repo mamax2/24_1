@@ -51,7 +51,43 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.ui.text.google.fonts)
-    implementation(libs.firebase.auth.ktx)
+
+    // Firebase - ESCLUDI LA VERSIONE CONFLITTANTE
+    implementation(libs.firebase.auth.ktx) {
+        exclude(group = "com.intellij", module = "annotations")
+    }
+    implementation(platform(libs.firebase.bom.v3270)) {
+        exclude(group = "com.intellij", module = "annotations")
+    }
+    implementation(libs.google.firebase.auth.ktx) {
+        exclude(group = "com.intellij", module = "annotations")
+    }
+
+    // Room - Database
+    implementation(libs.androidx.room.runtime) {
+        exclude(group = "com.intellij", module = "annotations")
+    }
+    implementation(libs.androidx.room.ktx) {
+        exclude(group = "com.intellij", module = "annotations")
+    }
+    implementation(libs.androidx.room.compiler) {
+        exclude(group = "com.intellij", module = "annotations")
+    }
+
+    // Coroutines
+    implementation(libs.kotlinx.coroutines.android)
+
+    // Lifecycle
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
+
+    // Image loading
+    implementation(libs.coil.compose)
+
+    // FORZA LA VERSIONE PIÙ RECENTE DELLE ANNOTATIONS
+    implementation("org.jetbrains:annotations:23.0.0")
+
+    // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -59,17 +95,5 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
-    implementation (platform(libs.firebase.bom.v3270))
-    implementation(libs.google.firebase.auth.ktx)
-    implementation (libs.coil.compose)
-    implementation (libs.androidx.activity.compose.v180)
-    implementation (libs.androidx.lifecycle.viewmodel.compose)
-    implementation (libs.androidx.lifecycle.runtime.compose)
-    implementation (libs.androidx.navigation.compose.v270)
-    implementation (libs.androidx.room.runtime)
-    implementation (libs.androidx.room.ktx)
-    implementation (libs.androidx.room.compiler)
-    implementation (libs.kotlinx.coroutines.android)
-
 }
 
