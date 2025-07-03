@@ -57,7 +57,7 @@ class Repository(
         priority: Int = 1,
         points: Int = 10
     ): String {
-        val activityId = java.util.UUID.randomUUID().toString()
+        val activityId = UUID.randomUUID().toString()
         val activity = ActivityEntity(
             id = activityId,
             userId = userId,
@@ -74,33 +74,13 @@ class Repository(
         return activityDao.getTodayActivities(userId)
     }
 
-   /* suspend fun completeActivity(activityId: String, userId: String) {
-        val activity = activityDao.getPendingActivities(userId).find { it.id == activityId }
-        activity?.let {
-            activityDao.updateActivityStatus(activityId, true, System.currentTimeMillis())
+    suspend fun completeActivity(activityId: String) {
+        activityDao.updateActivityStatus(activityId, true, System.currentTimeMillis())
+    }
 
-            // Add points
-            val user = userDao.getUser(userId)
-            user?.let { u ->
-                val newPoints = u.totalPoints + it.points
-                val newLevel = calculateLevel(newPoints)
-                userDao.addPoints(userId, it.points, newLevel)
-
-                // Check for level up
-                if (newLevel > u.level) {
-                    createNotification(
-                        userId = userId,
-                        type = "ACHIEVEMENT",
-                        title = "Level Up! 🆙",
-                        message = "You reached level $newLevel!"
-                    )
-                }
-            }
-
-            // Check daily progress
-            checkDailyProgress(userId)
-        }
-    }*/
+    suspend fun deleteActivity(activityId: String) {
+        activityDao.deleteActivity(activityId)
+    }
 
     suspend fun getTodayProgress(userId: String): Float {
         val completed = activityDao.getCompletedTodayCount(userId)
@@ -163,7 +143,7 @@ class Repository(
         actionData: String? = null
     ) {
         val notification = NotificationEntity(
-            id = java.util.UUID.randomUUID().toString(),
+            id = UUID.randomUUID().toString(),
             userId = userId,
             type = type,
             title = title,
@@ -236,6 +216,50 @@ class Repository(
                 )
             )
             notificationDao.insertNotifications(initialNotifications)
+        }
+    }
+
+    // ===== POPULATE WITH SAMPLE DATA =====
+    suspend fun populateWithSampleData() {
+        val userId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: return
+
+        // Inizializza l'utente se non esiste
+        val existingUser = userDao.getUser(userId)
+        if (existingUser == null) {
+            val user = UserEntity(
+                userId = userId,
+                name = "Sample User",
+                email = "sample@example.com"
+            )
+            userDao.insertUser(user)
+        }
+
+        // Aggiungi attività di esempio
+        val sampleActivities = listOf(
+            "Morning workout" to "30 minutes at the gym",
+            "Read a book" to "Finish chapter 3 of my current book",
+            "Call mom" to "Weekly check-in call",
+            "Grocery shopping" to "Buy ingredients for dinner",
+            "Work on project" to "Complete the presentation slides",
+            "Meditation" to "10 minutes mindfulness practice",
+            "Cook dinner" to "Try the new pasta recipe",
+            "Walk the dog" to "Evening walk in the park"
+        )
+
+        sampleActivities.forEach { (title, description) ->
+            addActivity(
+                userId = userId,
+                title = title,
+                description = description,
+                category = "today",
+                priority = (0..2).random() // Random priority
+            )
+        }
+
+        // Completa alcune attività a caso
+        val allActivities = getTodayActivities(userId)
+        allActivities.take(3).forEach { activity ->
+            completeActivity(activity.id)
         }
     }
 }

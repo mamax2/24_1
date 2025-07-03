@@ -32,6 +32,7 @@ abstract class AppDatabase : RoomDatabase() {
                     "app_database"
                 )
                     .build()
+                println("data instaurato")
                 INSTANCE = instance
                 instance
             }

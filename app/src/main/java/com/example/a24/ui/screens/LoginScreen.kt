@@ -133,9 +133,14 @@ fun Log(navController: NavHostController) {
                                 isLoading = false
 
                                 if (task.isSuccessful) {
-                                    // Login riuscito
-                                    Toast.makeText(context, "Login effettuato con successo!", Toast.LENGTH_SHORT).show()
-                                    navController.navigate("home")
+                                    // Inizializza l'utente nel database
+                                    val user = auth.currentUser
+                                    user?.let {
+                                        // Qui devi inizializzare il repository e chiamare initializeUser
+                                        // Ma per ora naviga semplicemente a home
+                                        Toast.makeText(context, "Login effettuato con successo!", Toast.LENGTH_SHORT).show()
+                                        navController.navigate("home")
+                                    }
                                 } else {
                                     // Login fallito
                                     val errorMessage = task.exception?.message ?: "Errore durante il login"

@@ -5,7 +5,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -15,13 +14,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import com.example.a24.App
+import com.example.a24.data.ActivityEntity
 import com.example.a24.ui.composables.AppBar
 import com.example.a24.ui.composables.SectionHeader
 import com.example.a24.ui.theme.AppTheme
@@ -30,40 +33,17 @@ import com.example.a24.ui.theme.onPrimaryLight
 import com.example.a24.ui.theme.onPrimaryLightMediumContrast
 import com.example.a24.ui.theme.primaryContainerLightMediumContrast
 import com.example.a24.ui.theme.primaryLight
-import kotlin.math.*
-
-// Data class per le attività
-data class Activity(
-    val id: String,
-    val title: String,
-    val description: String,
-    val category: ActivityCategory,
-    val location: String,
-    val latitude: Double,
-    val longitude: Double,
-    val duration: String,
-    val difficulty: ActivityDifficulty,
-    val isCompleted: Boolean = false,
-    val completedDate: String? = null
-)
-
-enum class ActivityCategory(val displayName: String,  val color: Color) {
-    SPORT("Sport",  Color(0xFF4CAF50)),
-    CULTURE("Culture",  Color(0xFF9C27B0)),
-    FOOD("Food & Drink",  Color(0xFFFF5722)),
-    NATURE("Nature",  Color(0xFF2E7D32)),
-    SHOPPING("Shopping",  Color(0xFFE91E63)),
-    ENTERTAINMENT("Entertainment",  Color(0xFF3F51B5))
-}
-
-enum class ActivityDifficulty(val displayName: String, val color: Color) {
-    EASY("Easy", Color(0xFF4CAF50)),
-    MEDIUM("Medium", Color(0xFFFF9800)),
-    HARD("Hard", Color(0xFFFF5722))
-}
+import com.example.a24.ui.viewmodel.HomeViewModel
+import java.text.SimpleDateFormat
+import java.util.*
 
 @Composable
 fun HomeScreen(navController: NavHostController) {
+    // Ottieni il repository dall'Application
+    val context = LocalContext.current
+    val app = context.applicationContext as App
+    val viewModel: HomeViewModel = viewModel { HomeViewModel(app.repository) }
+
     AppTheme {
         Column(
             modifier = Modifier.fillMaxSize()
@@ -73,81 +53,17 @@ fun HomeScreen(navController: NavHostController) {
 
             SectionHeader(text = "TODAY'S ACTIVITIES")
 
-            HomeContent(navController)
+            HomeContent(navController, viewModel)
         }
     }
 }
 
 @Composable
-fun HomeContent(navController: NavHostController) {
-    // Posizione utente fittizia (Milano centro)
-    val userLatitude = 45.4642
-    val userLongitude = 9.1900
-
-    // Attività di esempio
-    val activities = remember {
-        listOf(
-            Activity(
-                id = "1",
-                title = "Morning Jog in Parco Sempione",
-                description = "Start your day with a refreshing run through Milan's beautiful park",
-                category = ActivityCategory.SPORT,
-                location = "Parco Sempione, Milano",
-                latitude = 45.4727,
-                longitude = 9.1889,
-                duration = "45 min",
-                difficulty = ActivityDifficulty.MEDIUM
-            ),
-            Activity(
-                id = "2",
-                title = "Visit Duomo Cathedral",
-                description = "Explore the magnificent Gothic architecture of Milan's main cathedral",
-                category = ActivityCategory.CULTURE,
-                location = "Piazza del Duomo, Milano",
-                latitude = 45.4641,
-                longitude = 9.1919,
-                duration = "2 hours",
-                difficulty = ActivityDifficulty.EASY
-            ),
-            Activity(
-                id = "3",
-                title = "Aperitivo at Navigli",
-                description = "Enjoy traditional Italian aperitivo along the historic canals",
-                category = ActivityCategory.FOOD,
-                location = "Navigli District, Milano",
-                latitude = 45.4485,
-                longitude = 9.1815,
-                duration = "1.5 hours",
-                difficulty = ActivityDifficulty.EASY,
-                isCompleted = true,
-                completedDate = "Yesterday"
-            ),
-            Activity(
-                id = "4",
-                title = "Climb at Rock Gym",
-                description = "Challenge yourself with indoor rock climbing session",
-                category = ActivityCategory.SPORT,
-                location = "Urban Wall, Milano",
-                latitude = 45.4408,
-                longitude = 9.2123,
-                duration = "2 hours",
-                difficulty = ActivityDifficulty.HARD
-            ),
-            Activity(
-                id = "5",
-                title = "Shopping at Quadrilatero",
-                description = "Browse luxury boutiques in Milan's fashion district",
-                category = ActivityCategory.SHOPPING,
-                location = "Quadrilatero della Moda, Milano",
-                latitude = 45.4698,
-                longitude = 9.1951,
-                duration = "3 hours",
-                difficulty = ActivityDifficulty.EASY
-            )
-        )
-    }
-
-    var selectedActivity by remember { mutableStateOf<Activity?>(null) }
+fun HomeContent(navController: NavHostController, viewModel: HomeViewModel) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    var showAddDialog by remember { mutableStateOf(false) }
+    var selectedActivity by remember { mutableStateOf<ActivityEntity?>(null) }
 
     Box(
         modifier = Modifier
@@ -169,49 +85,191 @@ fun HomeContent(navController: NavHostController) {
             ) {
                 StatCard(
                     title = "Completed",
-                    value = activities.count { it.isCompleted }.toString(),
+                    value = uiState.completedToday.toString(),
                     color = Color(0xFF4CAF50)
                 )
                 StatCard(
                     title = "Remaining",
-                    value = activities.count { !it.isCompleted }.toString(),
+                    value = (uiState.totalToday - uiState.completedToday).toString(),
                     color = Color(0xFFFF9800)
                 )
                 StatCard(
                     title = "Total",
-                    value = activities.size.toString(),
+                    value = uiState.totalToday.toString(),
                     color = primaryContainerLightMediumContrast
                 )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Lista attività
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxHeight()
-            ) {
-                items(activities) { activity ->
-                    ActivityCard(
-                        activity = activity,
-                        userLatitude = userLatitude,
-                        userLongitude = userLongitude,
-                        onClick = { selectedActivity = activity }
+            // Progress bar
+            if (uiState.totalToday > 0) {
+                Text(
+                    text = "Today's Progress: ${(uiState.todayProgress * 100).toInt()}%",
+                    style = TextStyle(
+                        fontFamily = displayFontFamily,
+                        fontSize = 16.sp,
+                        color = onPrimaryLight
+                    )
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                LinearProgressIndicator(
+                    progress = { uiState.todayProgress },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp),
+                    color = Color(0xFF4CAF50),
+                    trackColor = Color.Gray.copy(alpha = 0.3f)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            // Loading state
+            if (uiState.isLoading) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+            // Empty state
+            else if (uiState.activities.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            Icons.Default.Add,
+                            contentDescription = "No activities",
+                            modifier = Modifier.size(64.dp),
+                            tint = onPrimaryLight.copy(alpha = 0.6f)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "No activities yet",
+                            style = TextStyle(
+                                fontFamily = displayFontFamily,
+                                fontSize = 16.sp,
+                                color = onPrimaryLight.copy(alpha = 0.6f)
+                            )
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = { showAddDialog = true },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = primaryContainerLightMediumContrast
+                            )
+                        ) {
+                            Text("Add First Activity")
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Pulsante per test semplice
+                        Button(
+                            onClick = {
+                                viewModel.addActivity("Test Activity", "This is a test")
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF9C27B0)
+                            )
+                        ) {
+                            Text("Add Test Activity")
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Button(
+                            onClick = {
+                                viewModel.addActivity("Morning Coffee", "Start the day right")
+                                viewModel.addActivity("Check emails", "Review important messages")
+                                viewModel.addActivity("Plan the day", "Set priorities and goals")
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF2196F3)
+                            )
+                        ) {
+                            Text("Add Sample Data")
+                        }
+                    }
+                }
+            }
+            // Activities list
+            else {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    items(uiState.activities) { activity ->
+                        ActivityCard(
+                            activity = activity,
+                            onMarkCompleted = { viewModel.completeActivity(it.id) },
+                            onDelete = { viewModel.deleteActivity(it.id) },
+                            onClick = { selectedActivity = activity }
+                        )
+                    }
+                }
+            }
+
+            // Error state
+            uiState.error?.let { error ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color.Red.copy(alpha = 0.1f)
+                    )
+                ) {
+                    Text(
+                        text = "Error: $error",
+                        modifier = Modifier.padding(16.dp),
+                        color = Color.Red
                     )
                 }
             }
         }
+
+        // FAB per aggiungere attività
+        FloatingActionButton(
+            onClick = { showAddDialog = true },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp),
+            containerColor = primaryContainerLightMediumContrast
+        ) {
+            Icon(
+                Icons.Default.Add,
+                contentDescription = "Add Activity",
+                tint = onPrimaryLightMediumContrast
+            )
+        }
+    }
+
+    // Dialog per aggiungere attività
+    if (showAddDialog) {
+        AddActivityDialog(
+            onDismiss = { showAddDialog = false },
+            onAddActivity = { title, description ->
+                viewModel.addActivity(title, description)
+                showAddDialog = false
+            }
+        )
     }
 
     // Dialog dettaglio attività
     selectedActivity?.let { activity ->
         ActivityDetailDialog(
             activity = activity,
-            userLatitude = userLatitude,
-            userLongitude = userLongitude,
             onDismiss = { selectedActivity = null },
             onMarkCompleted = {
-                // Qui implementeresti la logica per segnare come completata
+                viewModel.completeActivity(activity.id)
+                selectedActivity = null
+            },
+            onDelete = {
+                viewModel.deleteActivity(activity.id)
                 selectedActivity = null
             }
         )
@@ -257,12 +315,12 @@ fun StatCard(title: String, value: String, color: Color) {
 
 @Composable
 fun ActivityCard(
-    activity: Activity,
-    userLatitude: Double,
-    userLongitude: Double,
+    activity: ActivityEntity,
+    onMarkCompleted: (ActivityEntity) -> Unit,
+    onDelete: (ActivityEntity) -> Unit,
     onClick: () -> Unit
 ) {
-    val distance = calculateDistance(userLatitude, userLongitude, activity.latitude, activity.longitude)
+    val createdDate = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(activity.createdAt))
 
     Card(
         modifier = Modifier
@@ -282,10 +340,6 @@ fun ActivityCard(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-
-
-            Spacer(modifier = Modifier.width(16.dp))
-
             // Contenuto attività
             Column(
                 modifier = Modifier.weight(1f)
@@ -293,74 +347,50 @@ fun ActivityCard(
                 Text(
                     text = activity.title,
                     style = TextStyle(
+
                         fontFamily = displayFontFamily,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
-                        color = onPrimaryLight
+                        color = Color.Black
                     ),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
 
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Text(
-                    text = activity.location,
-                    style = TextStyle(
-                        fontFamily = displayFontFamily,
-                        fontSize = 14.sp,
-                        color = onPrimaryLight.copy(alpha = 0.7f)
-                    ),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                if (activity.description.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = activity.description,
+                        style = TextStyle(
+                            fontFamily = displayFontFamily,
+                            fontSize = 14.sp,
+                            color = onPrimaryLight.copy(alpha = 0.7f)
+                        ),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Distanza
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.LocationOn,
-                            contentDescription = "Distance",
-                            modifier = Modifier.size(16.dp),
-                            tint = Color(0xFF2196F3)
+                    Text(
+                        text = "Created: $createdDate",
+                        style = TextStyle(
+                            fontSize = 12.sp,
+                            color = Color(0xFF9E9E9E)
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "${String.format("%.1f", distance)} km",
-                            style = TextStyle(
-                                fontSize = 12.sp,
-                                color = Color(0xFF2196F3),
-                                fontWeight = FontWeight.Medium
-                            )
-                        )
-                    }
+                    )
 
                     Spacer(modifier = Modifier.width(16.dp))
 
-                    // Durata
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
 
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = activity.duration,
-                            style = TextStyle(
-                                fontSize = 12.sp,
-                                color = Color(0xFF9E9E9E)
-                            )
-                        )
-                    }
                 }
             }
 
-            // Status e difficoltà
+            // Azioni
             Column(
                 horizontalAlignment = Alignment.End
             ) {
@@ -372,21 +402,29 @@ fun ActivityCard(
                         modifier = Modifier.size(24.dp)
                     )
                 } else {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(activity.difficulty.color.copy(alpha = 0.2f))
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    IconButton(
+                        onClick = { onMarkCompleted(activity) },
+                        modifier = Modifier.size(32.dp)
                     ) {
-                        Text(
-                            text = activity.difficulty.displayName,
-                            style = TextStyle(
-                                fontSize = 10.sp,
-                                color = activity.difficulty.color,
-                                fontWeight = FontWeight.Bold
-                            )
+                        Icon(
+                            Icons.Default.CheckCircle,
+                            contentDescription = "Mark as completed",
+                            tint = Color.DarkGray,
+                            modifier = Modifier.size(24.dp)
                         )
                     }
+                }
+
+                IconButton(
+                    onClick = { onDelete(activity) },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Delete",
+                        tint = Color.Red.copy(alpha = 0.7f),
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
         }
@@ -394,105 +432,113 @@ fun ActivityCard(
 }
 
 @Composable
-fun ActivityDetailDialog(
-    activity: Activity,
-    userLatitude: Double,
-    userLongitude: Double,
+fun AddActivityDialog(
     onDismiss: () -> Unit,
-    onMarkCompleted: () -> Unit
+    onAddActivity: (String, String) -> Unit
 ) {
-    val distance = calculateDistance(userLatitude, userLongitude, activity.latitude, activity.longitude)
+    var title by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = activity.title,
-                    style = TextStyle(
-                        fontFamily = displayFontFamily,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+        title = { Text("Add New Activity") },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = { Text("Title") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Description (optional)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 3
                 )
             }
         },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (title.isNotBlank()) {
+                        onAddActivity(title, description)
+                    }
+                },
+                enabled = title.isNotBlank()
+            ) {
+                Text("Add")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+fun ActivityDetailDialog(
+    activity: ActivityEntity,
+    onDismiss: () -> Unit,
+    onMarkCompleted: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val createdDate = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date(activity.createdAt))
+    val completedDate = activity.completedAt?.let {
+        SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date(it))
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(activity.title) },
         text = {
             Column {
-                Text(
-                    text = activity.description,
-                    style = TextStyle(fontSize = 14.sp),
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
+                if (activity.description.isNotBlank()) {
+                    Text(
+                        text = activity.description,
+                        style = TextStyle(fontSize = 14.sp),
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                }
 
-                // Dettagli
-                DetailRow(
+                Text("Created: $createdDate")
+                Text("Category: ${activity.category}")
+                Text("Priority: ${when(activity.priority) {
+                    2 -> "High"
+                    1 -> "Medium"
+                    else -> "Low"
+                }}")
 
-                    label = "Location",
-                    value = activity.location
-
-                )
-
-                DetailRow(
-
-                    label = "Distance",
-                    value = "${String.format("%.1f", distance)} km from you",
-
-                )
-
-                DetailRow(
-                    label = "Duration",
-                    value = activity.duration
-                )
-
-                DetailRow(
-                    label = "Difficulty",
-                    value = activity.difficulty.displayName,
-                )
-
-                DetailRow(
-                    label = "Category",
-                    value = activity.category.displayName,
-                )
-
-                if (activity.isCompleted) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.CheckCircle,
-                            contentDescription = "Completed",
-                            tint = Color(0xFF4CAF50),
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Completed ${activity.completedDate}",
-                            style = TextStyle(
-                                fontSize = 14.sp,
-                                color = Color(0xFF4CAF50),
-                                fontWeight = FontWeight.Medium
-                            )
-                        )
-                    }
+                if (activity.isCompleted && completedDate != null) {
+                    Text("Completed: $completedDate", color = Color(0xFF4CAF50))
                 }
             }
         },
         confirmButton = {
-            if (!activity.isCompleted) {
+            Row {
+                if (!activity.isCompleted) {
+                    Button(
+                        onClick = onMarkCompleted,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF4CAF50)
+                        )
+                    ) {
+                        Text("Complete")
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+
                 Button(
-                    onClick = onMarkCompleted,
+                    onClick = onDelete,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = primaryContainerLightMediumContrast,
-                        contentColor = onPrimaryLightMediumContrast
+                        containerColor = Color.Red
                     )
                 ) {
-                    Text("Mark as Completed")
+                    Text("Delete")
                 }
             }
         },
@@ -502,50 +548,4 @@ fun ActivityDetailDialog(
             }
         }
     )
-}
-
-@Composable
-fun DetailRow(
-
-    label: String,
-    value: String
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            text = "$label:",
-            style = TextStyle(
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium
-            ),
-            modifier = Modifier.width(80.dp)
-        )
-        Text(
-            text = value,
-            style = TextStyle(fontSize = 12.sp),
-            modifier = Modifier.weight(1f)
-        )
-    }
-}
-
-// Funzione per calcolare la distanza tra due coordinate geografiche
-fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
-    val earthRadius = 6371.0 // Raggio della Terra in km
-
-    val dLat = Math.toRadians(lat2 - lat1)
-    val dLon = Math.toRadians(lon2 - lon1)
-
-    val a = sin(dLat / 2) * sin(dLat / 2) +
-            cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) *
-            sin(dLon / 2) * sin(dLon / 2)
-
-    val c = 2 * atan2(sqrt(a), sqrt(1 - a))
-
-    return earthRadius * c
 }

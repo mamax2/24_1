@@ -98,13 +98,13 @@ interface ActivityDao {
     """)
     suspend fun getTotalTodayCount(userId: String): Int
 
-    @Query("""
+  /*  @Query("""
         SELECT SUM(points) FROM activities 
         WHERE userId = :userId 
         AND is_completed = 1 
         AND date(completed_at/1000, 'unixepoch') = date('now')
     """)
-    suspend fun getTodayPoints(userId: String): Int?
+    suspend fun getTodayPoints(userId: String): Int?*/
 
     @Query("""
         SELECT COUNT(*) FROM activities 

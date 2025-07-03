@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     id("com.google.gms.google-services")
+    id("kotlin-kapt")
 }
 
 android {
@@ -64,15 +65,9 @@ dependencies {
     }
 
     // Room - Database
-    implementation(libs.androidx.room.runtime) {
-        exclude(group = "com.intellij", module = "annotations")
-    }
-    implementation(libs.androidx.room.ktx) {
-        exclude(group = "com.intellij", module = "annotations")
-    }
-    implementation(libs.androidx.room.compiler) {
-        exclude(group = "com.intellij", module = "annotations")
-    }
+    implementation(libs.androidx.room.runtime.v261)
+    implementation(libs.androidx.room.ktx.v261)
+    //kapt(libs.androidx.room.compiler.v261)
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)

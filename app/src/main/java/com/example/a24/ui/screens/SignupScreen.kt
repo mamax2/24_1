@@ -217,7 +217,6 @@ fun Signup(navController: NavHostController) {
                 }
             }
 
-            // Pulsante "Already have an account? Login"
             Button(
                 onClick = {
                     navController.navigate("login") {
