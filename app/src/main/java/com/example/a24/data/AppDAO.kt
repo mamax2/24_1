@@ -20,11 +20,12 @@ interface UserDao {
     @Query("UPDATE users SET badges = :badges WHERE userId = :userId")
     suspend fun updateBadges(userId: String, badges: String)
 
-    @Query("UPDATE users SET total_points = total_points + :points, level = :newLevel WHERE userId = :userId")
-    suspend fun addPoints(userId: String, points: Int, newLevel: Int)
-
     @Query("UPDATE users SET last_active = :timestamp WHERE userId = :userId")
     suspend fun updateLastActive(userId: String, timestamp: Long)
+
+    @Query("UPDATE users SET profile_image_url = :url WHERE userId = :userId")
+    suspend fun updateProfileImage(userId: String, url: String)
+
 }
 
 @Dao

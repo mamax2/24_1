@@ -53,7 +53,7 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.ui.text.google.fonts)
 
-    // Firebase - ESCLUDI LA VERSIONE CONFLITTANTE
+    // Firebase
     implementation(libs.firebase.auth.ktx) {
         exclude(group = "com.intellij", module = "annotations")
     }
@@ -63,14 +63,19 @@ dependencies {
     implementation(libs.google.firebase.auth.ktx) {
         exclude(group = "com.intellij", module = "annotations")
     }
+    implementation(libs.firebase.storage.ktx)
+
 
     // Room - Database
-    implementation(libs.androidx.room.runtime.v261)
-    implementation(libs.androidx.room.ktx.v261)
-    //kapt(libs.androidx.room.compiler.v261)
+    implementation (libs.androidx.room.runtime)
+    kapt ("androidx.room:room-compiler:2.7.2")
+    implementation(libs.androidx.room.ktx)
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.androidx.activity.ktx)
+    implementation(libs.androidx.activity.compose.v182)
+
 
     // Lifecycle
     implementation(libs.androidx.lifecycle.viewmodel.compose)
@@ -78,6 +83,8 @@ dependencies {
 
     // Image loading
     implementation(libs.coil.compose)
+    implementation(libs.google.firebase.storage.ktx)
+
 
     // FORZA LA VERSIONE PIÙ RECENTE DELLE ANNOTATIONS
     implementation("org.jetbrains:annotations:23.0.0")

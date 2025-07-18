@@ -39,10 +39,14 @@ import java.util.*
 
 @Composable
 fun HomeScreen(navController: NavHostController) {
-    // Ottieni il repository dall'Application
     val context = LocalContext.current
-    val app = context.applicationContext as App
-    val viewModel: HomeViewModel = viewModel { HomeViewModel(app.repository) }
+    val app = context.applicationContext
+
+    val viewModel: HomeViewModel? = if (app is App) {
+        viewModel { HomeViewModel(app.repository) }
+    } else {
+        null
+    }
 
     AppTheme {
         Column(
@@ -53,10 +57,26 @@ fun HomeScreen(navController: NavHostController) {
 
             SectionHeader(text = "TODAY'S ACTIVITIES")
 
-            HomeContent(navController, viewModel)
+            if (viewModel != null) {
+                HomeContent(navController, viewModel)
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Errore interno: App non inizializzata",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
+            }
         }
     }
 }
+
 
 @Composable
 fun HomeContent(navController: NavHostController, viewModel: HomeViewModel) {

@@ -1,18 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Percorso per le foto scattate dalla camera -->
-    <external-files-path
-        name="images"
-        path="Pictures" />
-
-    <!-- Percorso per file temporanei -->
-    <external-files-path
-        name="temp_images"
-        path="." />
-
-    <!-- Percorso per la cache -->
     <external-cache-path
-        name="cache_images"
+        name="images"
         path="." />
-
 </paths>

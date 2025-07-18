@@ -13,6 +13,8 @@ import com.example.a24.ui.composables.AppBar
 import com.example.a24.ui.screens.HomeScreen
 import com.example.a24.ui.screens.LoginScreen
 import com.example.a24.ui.theme.AppTheme
+import com.example.a24.App
+
 
 class MainActivity : ComponentActivity() {
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")

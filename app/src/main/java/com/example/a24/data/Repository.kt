@@ -48,6 +48,11 @@ class Repository(
         }
     }
 
+    suspend fun updateUserProfileImage(userId: String, newUrl: String) {
+        userDao.updateProfileImage(userId, newUrl)
+    }
+
+
     // ===== ACTIVITY OPERATIONS =====
     suspend fun addActivity(
         userId: String,
@@ -87,6 +92,7 @@ class Repository(
         val total = activityDao.getTotalTodayCount(userId)
         return if (total > 0) completed.toFloat() / total.toFloat() else 0f
     }
+
 
     // ===== GAMIFICATION =====
     private suspend fun checkDailyProgress(userId: String) {
