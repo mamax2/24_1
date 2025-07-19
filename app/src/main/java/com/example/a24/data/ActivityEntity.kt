@@ -35,6 +35,9 @@ data class ActivityEntity(
     @ColumnInfo(name = "priority")
     val priority: Int = 1, // 0=low, 1=medium, 2=high
 
+    @ColumnInfo(name = "points")
+    val points: Int = 10,
+
     @ColumnInfo(name = "created_at")
     val createdAt: Long = System.currentTimeMillis(),
 

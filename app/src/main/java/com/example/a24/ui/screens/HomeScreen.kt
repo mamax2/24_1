@@ -20,11 +20,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
-import com.example.a24.App
 import com.example.a24.data.ActivityEntity
+import com.example.a24.data.AppDatabase
+import com.example.a24.data.Repository
 import com.example.a24.ui.composables.AppBar
 import com.example.a24.ui.composables.SectionHeader
 import com.example.a24.ui.theme.AppTheme
@@ -34,18 +34,25 @@ import com.example.a24.ui.theme.onPrimaryLightMediumContrast
 import com.example.a24.ui.theme.primaryContainerLightMediumContrast
 import com.example.a24.ui.theme.primaryLight
 import com.example.a24.ui.viewmodel.HomeViewModel
+import com.example.a24.ui.viewmodel.HomeUiState
 import java.text.SimpleDateFormat
 import java.util.*
 
 @Composable
 fun HomeScreen(navController: NavHostController) {
     val context = LocalContext.current
-    val app = context.applicationContext
 
-    val viewModel: HomeViewModel? = if (app is App) {
-        viewModel { HomeViewModel(app.repository) }
-    } else {
-        null
+    // Inizializza ViewModel con Repository
+    val database = AppDatabase.getDatabase(context)
+    val repository = Repository(
+        database.userDao(),
+        database.activityDao(),
+        database.notificationDao(),
+        database.badgeDao()
+    )
+
+    val viewModel: HomeViewModel = viewModel {
+        HomeViewModel(repository)
     }
 
     AppTheme {
@@ -57,33 +64,27 @@ fun HomeScreen(navController: NavHostController) {
 
             SectionHeader(text = "TODAY'S ACTIVITIES")
 
-            if (viewModel != null) {
-                HomeContent(navController, viewModel)
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Errore interno: App non inizializzata",
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                }
-            }
+            HomeContent(navController = navController, viewModel = viewModel)
         }
     }
 }
 
-
 @Composable
-fun HomeContent(navController: NavHostController, viewModel: HomeViewModel) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+fun HomeContent(
+    navController: NavHostController,
+    viewModel: HomeViewModel
+) {
+    val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
-    var showAddDialog by remember { mutableStateOf(false) }
-    var selectedActivity by remember { mutableStateOf<ActivityEntity?>(null) }
+
+    // Gestione errori
+    uiState.errorMessage?.let { error ->
+        LaunchedEffect(error) {
+            // Mostra errore in un toast
+            android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_LONG).show()
+            viewModel.clearErrorMessage()
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -98,53 +99,18 @@ fun HomeContent(navController: NavHostController, viewModel: HomeViewModel) {
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // Statistiche rapide
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                StatCard(
-                    title = "Completed",
-                    value = uiState.completedToday.toString(),
-                    color = Color(0xFF4CAF50)
-                )
-                StatCard(
-                    title = "Remaining",
-                    value = (uiState.totalToday - uiState.completedToday).toString(),
-                    color = Color(0xFFFF9800)
-                )
-                StatCard(
-                    title = "Total",
-                    value = uiState.totalToday.toString(),
-                    color = primaryContainerLightMediumContrast
-                )
-            }
+
+            // Header con statistiche
+            StatsSection(uiState = uiState)
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Progress bar
-            if (uiState.totalToday > 0) {
-                Text(
-                    text = "Today's Progress: ${(uiState.todayProgress * 100).toInt()}%",
-                    style = TextStyle(
-                        fontFamily = displayFontFamily,
-                        fontSize = 16.sp,
-                        color = onPrimaryLight
-                    )
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                LinearProgressIndicator(
-                    progress = { uiState.todayProgress },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(8.dp),
-                    color = Color(0xFF4CAF50),
-                    trackColor = Color.Gray.copy(alpha = 0.3f)
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-            }
+            // Sezione azioni rapide
+            QuickActionsSection(viewModel = viewModel)
 
-            // Loading state
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Lista attività
             if (uiState.isLoading) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -152,148 +118,51 @@ fun HomeContent(navController: NavHostController, viewModel: HomeViewModel) {
                 ) {
                     CircularProgressIndicator()
                 }
+            } else {
+                ActivitiesSection(
+                    activities = uiState.activities,
+                    onActivityComplete = viewModel::completeActivity,
+                    onRefresh = viewModel::refreshData
+                )
             }
-            // Empty state
-            else if (uiState.activities.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(
-                            Icons.Default.Add,
-                            contentDescription = "No activities",
-                            modifier = Modifier.size(64.dp),
-                            tint = onPrimaryLight.copy(alpha = 0.6f)
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "No activities yet",
-                            style = TextStyle(
-                                fontFamily = displayFontFamily,
-                                fontSize = 16.sp,
-                                color = onPrimaryLight.copy(alpha = 0.6f)
-                            )
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Button(
-                            onClick = { showAddDialog = true },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = primaryContainerLightMediumContrast
-                            )
-                        ) {
-                            Text("Add First Activity")
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        // Pulsante per test semplice
-                        Button(
-                            onClick = {
-                                viewModel.addActivity("Test Activity", "This is a test")
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF9C27B0)
-                            )
-                        ) {
-                            Text("Add Test Activity")
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Button(
-                            onClick = {
-                                viewModel.addActivity("Morning Coffee", "Start the day right")
-                                viewModel.addActivity("Check emails", "Review important messages")
-                                viewModel.addActivity("Plan the day", "Set priorities and goals")
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF2196F3)
-                            )
-                        ) {
-                            Text("Add Sample Data")
-                        }
-                    }
-                }
-            }
-            // Activities list
-            else {
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    items(uiState.activities) { activity ->
-                        ActivityCard(
-                            activity = activity,
-                            onMarkCompleted = { viewModel.completeActivity(it.id) },
-                            onDelete = { viewModel.deleteActivity(it.id) },
-                            onClick = { selectedActivity = activity }
-                        )
-                    }
-                }
-            }
-
-            // Error state
-            uiState.error?.let { error ->
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = Color.Red.copy(alpha = 0.1f)
-                    )
-                ) {
-                    Text(
-                        text = "Error: $error",
-                        modifier = Modifier.padding(16.dp),
-                        color = Color.Red
-                    )
-                }
-            }
-        }
-
-        // FAB per aggiungere attività
-        FloatingActionButton(
-            onClick = { showAddDialog = true },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(16.dp),
-            containerColor = primaryContainerLightMediumContrast
-        ) {
-            Icon(
-                Icons.Default.Add,
-                contentDescription = "Add Activity",
-                tint = onPrimaryLightMediumContrast
-            )
         }
     }
+}
 
-    // Dialog per aggiungere attività
-    if (showAddDialog) {
-        AddActivityDialog(
-            onDismiss = { showAddDialog = false },
-            onAddActivity = { title, description ->
-                viewModel.addActivity(title, description)
-                showAddDialog = false
-            }
+@Composable
+fun StatsSection(uiState: HomeUiState) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        StatCard(
+            title = "Completed",
+            value = uiState.completedCount.toString(),
+            color = Color(0xFF4CAF50)
+        )
+        StatCard(
+            title = "Remaining",
+            value = (uiState.totalCount - uiState.completedCount).toString(),
+            color = Color(0xFFFF9800)
+        )
+        StatCard(
+            title = "Progress",
+            value = "${(uiState.todayProgress * 100).toInt()}%",
+            color = primaryContainerLightMediumContrast
         )
     }
 
-    // Dialog dettaglio attività
-    selectedActivity?.let { activity ->
-        ActivityDetailDialog(
-            activity = activity,
-            onDismiss = { selectedActivity = null },
-            onMarkCompleted = {
-                viewModel.completeActivity(activity.id)
-                selectedActivity = null
-            },
-            onDelete = {
-                viewModel.deleteActivity(activity.id)
-                selectedActivity = null
-            }
-        )
-    }
+    // Barra di progresso
+    Spacer(modifier = Modifier.height(8.dp))
+    LinearProgressIndicator(
+        progress = { uiState.todayProgress },
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(8.dp)
+            .clip(RoundedCornerShape(4.dp)),
+        color = Color(0xFF4CAF50),
+        trackColor = Color.Gray.copy(alpha = 0.3f)
+    )
 }
 
 @Composable
@@ -316,7 +185,7 @@ fun StatCard(title: String, value: String, color: Color) {
                 text = value,
                 style = TextStyle(
                     fontFamily = displayFontFamily,
-                    fontSize = 24.sp,
+                    fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = color
                 )
@@ -325,7 +194,7 @@ fun StatCard(title: String, value: String, color: Color) {
                 text = title,
                 style = TextStyle(
                     fontFamily = displayFontFamily,
-                    fontSize = 12.sp,
+                    fontSize = 11.sp,
                     color = onPrimaryLight
                 )
             )
@@ -334,18 +203,84 @@ fun StatCard(title: String, value: String, color: Color) {
 }
 
 @Composable
+fun QuickActionsSection(viewModel: HomeViewModel) {
+    var showAddDialog by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Button(
+            onClick = { showAddDialog = true },
+            colors = ButtonDefaults.buttonColors(
+                containerColor = primaryContainerLightMediumContrast,
+                contentColor = onPrimaryLightMediumContrast
+            ),
+            modifier = Modifier.weight(1f)
+        ) {
+            Icon(Icons.Default.Add, contentDescription = "Add Activity")
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Add Activity")
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        Button(
+            onClick = { viewModel.addSampleActivities() },
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF2196F3),
+                contentColor = Color.White
+            ),
+            modifier = Modifier.weight(1f)
+        ) {
+            Icon(Icons.Default.Refresh, contentDescription = "Add Sample")
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Add Sample")
+        }
+    }
+
+    // Dialog per aggiungere attività
+    if (showAddDialog) {
+        AddActivityDialog(
+            onDismiss = { showAddDialog = false },
+            onAdd = { title, description ->
+                viewModel.addActivity(title, description)
+                showAddDialog = false
+            }
+        )
+    }
+}
+
+@Composable
+fun ActivitiesSection(
+    activities: List<ActivityEntity>,
+    onActivityComplete: (String) -> Unit,
+    onRefresh: () -> Unit
+) {
+    if (activities.isEmpty()) {
+        EmptyState(onRefresh = onRefresh)
+    } else {
+        LazyColumn(
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxHeight()
+        ) {
+            items(activities) { activity ->
+                ActivityCard(
+                    activity = activity,
+                    onComplete = { onActivityComplete(activity.id) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
 fun ActivityCard(
     activity: ActivityEntity,
-    onMarkCompleted: (ActivityEntity) -> Unit,
-    onDelete: (ActivityEntity) -> Unit,
-    onClick: () -> Unit
+    onComplete: () -> Unit
 ) {
-    val createdDate = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(activity.createdAt))
-
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
+        modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = if (activity.isCompleted)
                 Color.White.copy(alpha = 0.7f)
@@ -367,7 +302,6 @@ fun ActivityCard(
                 Text(
                     text = activity.title,
                     style = TextStyle(
-
                         fontFamily = displayFontFamily,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
@@ -377,7 +311,7 @@ fun ActivityCard(
                     overflow = TextOverflow.Ellipsis
                 )
 
-                if (activity.description.isNotBlank()) {
+                if (activity.description.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = activity.description,
@@ -386,64 +320,54 @@ fun ActivityCard(
                             fontSize = 14.sp,
                             color = onPrimaryLight.copy(alpha = 0.7f)
                         ),
-                        maxLines = 2,
+                        maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Created: $createdDate",
+                        text = "${activity.points} pts",
                         style = TextStyle(
                             fontSize = 12.sp,
-                            color = Color(0xFF9E9E9E)
+                            color = Color(0xFF4CAF50),
+                            fontWeight = FontWeight.Medium
                         )
                     )
 
                     Spacer(modifier = Modifier.width(16.dp))
 
-
+                    Text(
+                        text = "Priority: ${activity.priority}",
+                        style = TextStyle(
+                            fontSize = 12.sp,
+                            color = Color(0xFF9E9E9E)
+                        )
+                    )
                 }
             }
 
-            // Azioni
-            Column(
-                horizontalAlignment = Alignment.End
-            ) {
-                if (activity.isCompleted) {
-                    Icon(
-                        Icons.Default.CheckCircle,
-                        contentDescription = "Completed",
-                        tint = Color(0xFF4CAF50),
-                        modifier = Modifier.size(24.dp)
-                    )
-                } else {
-                    IconButton(
-                        onClick = { onMarkCompleted(activity) },
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.CheckCircle,
-                            contentDescription = "Mark as completed",
-                            tint = Color.DarkGray,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
-
+            // Pulsante azione
+            if (activity.isCompleted) {
+                Icon(
+                    Icons.Default.CheckCircle,
+                    contentDescription = "Completed",
+                    tint = Color(0xFF4CAF50),
+                    modifier = Modifier.size(32.dp)
+                )
+            } else {
                 IconButton(
-                    onClick = { onDelete(activity) },
+                    onClick = onComplete,
                     modifier = Modifier.size(32.dp)
                 ) {
                     Icon(
-                        Icons.Default.Delete,
-                        contentDescription = "Delete",
-                        tint = Color.Red.copy(alpha = 0.7f),
-                        modifier = Modifier.size(20.dp)
+                        Icons.Default.Check,
+                        contentDescription = "Mark Complete",
+                        tint = Color(0xFF4CAF50)
                     )
                 }
             }
@@ -452,9 +376,47 @@ fun ActivityCard(
 }
 
 @Composable
+fun EmptyState(onRefresh: () -> Unit) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                Icons.Default.List,
+                contentDescription = "No activities",
+                modifier = Modifier.size(64.dp),
+                tint = onPrimaryLight.copy(alpha = 0.6f)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "No activities yet",
+                style = TextStyle(
+                    fontFamily = displayFontFamily,
+                    fontSize = 16.sp,
+                    color = onPrimaryLight.copy(alpha = 0.6f)
+                )
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(
+                onClick = onRefresh,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = primaryContainerLightMediumContrast,
+                    contentColor = onPrimaryLightMediumContrast
+                )
+            ) {
+                Text("Add Sample Activities")
+            }
+        }
+    }
+}
+
+@Composable
 fun AddActivityDialog(
     onDismiss: () -> Unit,
-    onAddActivity: (String, String) -> Unit
+    onAdd: (String, String) -> Unit
 ) {
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
@@ -468,6 +430,7 @@ fun AddActivityDialog(
                     value = title,
                     onValueChange = { title = it },
                     label = { Text("Title") },
+                    singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(8.dp))
@@ -481,10 +444,10 @@ fun AddActivityDialog(
             }
         },
         confirmButton = {
-            Button(
+            TextButton(
                 onClick = {
                     if (title.isNotBlank()) {
-                        onAddActivity(title, description)
+                        onAdd(title.trim(), description.trim())
                     }
                 },
                 enabled = title.isNotBlank()
@@ -495,76 +458,6 @@ fun AddActivityDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text("Cancel")
-            }
-        }
-    )
-}
-
-@Composable
-fun ActivityDetailDialog(
-    activity: ActivityEntity,
-    onDismiss: () -> Unit,
-    onMarkCompleted: () -> Unit,
-    onDelete: () -> Unit
-) {
-    val createdDate = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date(activity.createdAt))
-    val completedDate = activity.completedAt?.let {
-        SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date(it))
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(activity.title) },
-        text = {
-            Column {
-                if (activity.description.isNotBlank()) {
-                    Text(
-                        text = activity.description,
-                        style = TextStyle(fontSize = 14.sp),
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
-                }
-
-                Text("Created: $createdDate")
-                Text("Category: ${activity.category}")
-                Text("Priority: ${when(activity.priority) {
-                    2 -> "High"
-                    1 -> "Medium"
-                    else -> "Low"
-                }}")
-
-                if (activity.isCompleted && completedDate != null) {
-                    Text("Completed: $completedDate", color = Color(0xFF4CAF50))
-                }
-            }
-        },
-        confirmButton = {
-            Row {
-                if (!activity.isCompleted) {
-                    Button(
-                        onClick = onMarkCompleted,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF4CAF50)
-                        )
-                    ) {
-                        Text("Complete")
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                }
-
-                Button(
-                    onClick = onDelete,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.Red
-                    )
-                ) {
-                    Text("Delete")
-                }
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Close")
             }
         }
     )

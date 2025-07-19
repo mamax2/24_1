@@ -22,6 +22,12 @@ data class UserEntity(
     @ColumnInfo(name = "total_activities")
     val totalActivities: Int = 0,
 
+    @ColumnInfo(name = "total_points")
+    val totalPoints: Int = 0,
+
+    @ColumnInfo(name = "level")
+    val level: Int = 1,
+
     @ColumnInfo(name = "badges")
     val badges: String = "", // JSON string: ["badge1", "badge2"]
 

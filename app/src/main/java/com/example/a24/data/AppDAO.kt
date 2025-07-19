@@ -20,23 +20,17 @@ interface UserDao {
     @Query("UPDATE users SET badges = :badges WHERE userId = :userId")
     suspend fun updateBadges(userId: String, badges: String)
 
+    @Query("UPDATE users SET total_points = total_points + :points, level = :newLevel WHERE userId = :userId")
+    suspend fun addPoints(userId: String, points: Int, newLevel: Int)
+
     @Query("UPDATE users SET last_active = :timestamp WHERE userId = :userId")
     suspend fun updateLastActive(userId: String, timestamp: Long)
-
-    @Query("UPDATE users SET profile_image_url = :url WHERE userId = :userId")
-    suspend fun updateProfileImage(userId: String, url: String)
-
 }
 
 @Dao
 interface ActivityDao {
     // Get today's activities
-    @Query("""
-        SELECT * FROM activities 
-        WHERE userId = :userId 
-        AND date(created_at/1000, 'unixepoch') = date('now') 
-        ORDER BY priority DESC, created_at ASC
-    """)
+    @Query("SELECT * FROM activities WHERE userId = :userId ORDER BY created_at DESC")
     suspend fun getTodayActivities(userId: String): List<ActivityEntity>
 
     // Get activities by category
@@ -99,13 +93,13 @@ interface ActivityDao {
     """)
     suspend fun getTotalTodayCount(userId: String): Int
 
-  /*  @Query("""
+    @Query("""
         SELECT SUM(points) FROM activities 
         WHERE userId = :userId 
         AND is_completed = 1 
         AND date(completed_at/1000, 'unixepoch') = date('now')
     """)
-    suspend fun getTodayPoints(userId: String): Int?*/
+    suspend fun getTodayPoints(userId: String): Int?
 
     @Query("""
         SELECT COUNT(*) FROM activities 

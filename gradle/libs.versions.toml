@@ -21,6 +21,7 @@ navigationComposeVersion = "2.7.0"
 room = "2.7.2"
 uiTextGoogleFonts = "1.7.8"
 firebaseAuthKtx = "23.2.1"
+firebaseStorageKtx = "21.0.2"
 
 [libraries]
 androidx-activity-compose-v180 = { module = "androidx.activity:activity-compose", version.ref = "activityComposeVersion" }
@@ -66,6 +67,7 @@ androidx-material3 = { group = "androidx.compose.material3", name = "material3" 
 androidx-ui-text-google-fonts = { group = "androidx.compose.ui", name = "ui-text-google-fonts", version.ref = "uiTextGoogleFonts" }
 
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "kotlinxCoroutinesAndroid" }
+com-google-firebase-firebase-storage-ktx = { group = "com.google.firebase", name = "firebase-storage-ktx", version.ref = "firebaseStorageKtx" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
