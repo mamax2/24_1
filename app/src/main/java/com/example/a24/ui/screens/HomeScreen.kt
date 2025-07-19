@@ -96,7 +96,7 @@ fun HomeContent(
     ) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxSize()
                 .padding(16.dp)
         ) {
 
@@ -110,20 +110,28 @@ fun HomeContent(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Lista attività
+            // Lista attività - con weight per occupare spazio rimanente
             if (uiState.isLoading) {
                 Box(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f), // ← AGGIUNTO WEIGHT
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator()
                 }
             } else {
-                ActivitiesSection(
-                    activities = uiState.activities,
-                    onActivityComplete = viewModel::completeActivity,
-                    onRefresh = viewModel::refreshData
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f) // ← AGGIUNTO WEIGHT
+                ) {
+                    ActivitiesSection(
+                        activities = uiState.activities,
+                        onActivityComplete = viewModel::completeActivity,
+                        onRefresh = viewModel::refreshData
+                    )
+                }
             }
         }
     }
@@ -146,9 +154,9 @@ fun StatsSection(uiState: HomeUiState) {
             color = Color(0xFFFF9800)
         )
         StatCard(
-            title = "Progress",
+            title = "Daily Progress",
             value = "${(uiState.todayProgress * 100).toInt()}%",
-            color = primaryContainerLightMediumContrast
+            color = onPrimaryLight
         )
     }
 
@@ -262,7 +270,8 @@ fun ActivitiesSection(
     } else {
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.fillMaxHeight()
+            modifier = Modifier.fillMaxSize(), // ← CAMBIATO DA fillMaxHeight() A fillMaxSize()
+            contentPadding = PaddingValues(bottom = 16.dp) // ← AGGIUNTO PADDING BOTTOM
         ) {
             items(activities) { activity ->
                 ActivityCard(
@@ -318,7 +327,7 @@ fun ActivityCard(
                         style = TextStyle(
                             fontFamily = displayFontFamily,
                             fontSize = 14.sp,
-                            color = onPrimaryLight.copy(alpha = 0.7f)
+                            color = Color.DarkGray
                         ),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis

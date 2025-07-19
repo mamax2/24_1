@@ -32,12 +32,6 @@ class HomeViewModel(
     private val auth = FirebaseAuth.getInstance()
 
     init {
-
-        auth.currentUser?.let { user ->
-            viewModelScope.launch {
-                repository.initializeUser(user.uid, user.displayName ?: "User", user.email ?: "")
-            }
-        }
         loadHomeData()
     }
 
@@ -164,6 +158,25 @@ class HomeViewModel(
      */
     fun refreshData() {
         loadHomeData()
+    }
+
+    /**
+     * Rimuove un'attività
+     */
+    fun deleteActivity(activityId: String) {
+        viewModelScope.launch {
+            try {
+                repository.deleteActivity(activityId)
+
+                // Ricarica i dati
+                loadHomeData()
+
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    errorMessage = "Error deleting activity: ${e.message}"
+                )
+            }
+        }
     }
 
     /**

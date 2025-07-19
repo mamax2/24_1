@@ -110,6 +110,10 @@ class Repository(
         return if (total > 0) completed.toFloat() / total.toFloat() else 0f
     }
 
+    suspend fun deleteActivity(activityId: String) {
+        activityDao.deleteActivity(activityId)
+    }
+
     // ===== GAMIFICATION =====
     private suspend fun checkDailyProgress(userId: String) {
         val progress = getTodayProgress(userId)
@@ -198,6 +202,7 @@ class Repository(
         val existingNotifications = notificationDao.getAllNotifications(userId)
 
         // Se non ci sono notifiche, crea quelle iniziali
+        // (questo è un approccio semplificato)
         val now = System.currentTimeMillis()
         val initialNotifications = listOf(
             NotificationEntity(
