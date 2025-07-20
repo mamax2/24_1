@@ -111,7 +111,6 @@ class HomeViewModel(
                     description = description,
                     category = category,
                     priority = priority,
-                    points = points
                 )
 
                 // Debug: verifica che l'attività sia stata aggiunta
@@ -160,24 +159,6 @@ class HomeViewModel(
         loadHomeData()
     }
 
-    /**
-     * Rimuove un'attività
-     */
-    fun deleteActivity(activityId: String) {
-        viewModelScope.launch {
-            try {
-                repository.deleteActivity(activityId)
-
-                // Ricarica i dati
-                loadHomeData()
-
-            } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    errorMessage = "Error deleting activity: ${e.message}"
-                )
-            }
-        }
-    }
 
     /**
      * Pulisce i messaggi di errore
@@ -209,7 +190,6 @@ class HomeViewModel(
                         description = description,
                         category = "today",
                         priority = 1,
-                        points = points
                     )
                 }
 

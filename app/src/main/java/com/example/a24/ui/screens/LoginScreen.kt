@@ -40,6 +40,12 @@ import com.example.a24.ui.theme.primaryLight
 import com.google.firebase.auth.FirebaseAuth
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
+import com.example.a24.data.AppDatabase
+import com.example.a24.data.Repository
+import com.example.a24.managers.NotificationManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 @Composable
 fun LoginScreen(navController: NavHostController){
@@ -60,13 +66,24 @@ fun LoginScreen(navController: NavHostController){
 
 @Composable
 fun Log(navController: NavHostController) {
-
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val auth = FirebaseAuth.getInstance()
+
+    // Inizializza repository e notification manager
+    val database = remember { AppDatabase.getDatabase(context) }
+    val repository = remember {
+        Repository(
+            userDao = database.userDao(),
+            activityDao = database.activityDao(),
+            notificationDao = database.notificationDao(),
+            badgeDao = database.badgeDao()
+        )
+    }
+    val notificationManager = remember { NotificationManager(repository) }
 
     Box(
         modifier = Modifier
@@ -86,7 +103,7 @@ fun Log(navController: NavHostController) {
             // Titolo "Email"
             Text(
                 text = "Email",
-                style = TextStyle(fontFamily = displayFontFamily, fontSize = 18.sp,color= onPrimaryLight),
+                style = TextStyle(fontFamily = displayFontFamily, fontSize = 18.sp, color = onPrimaryLight),
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
@@ -133,16 +150,37 @@ fun Log(navController: NavHostController) {
                                 isLoading = false
 
                                 if (task.isSuccessful) {
-                                    // Inizializza l'utente nel database
                                     val user = auth.currentUser
-                                    user?.let {
-                                        // Qui devi inizializzare il repository e chiamare initializeUser
-                                        // Ma per ora naviga semplicemente a home
-                                        Toast.makeText(context, "Login effettuato con successo!", Toast.LENGTH_SHORT).show()
-                                        navController.navigate("home")
+                                    user?.let { firebaseUser ->
+                                        // Inizializza l'utente nel database locale
+                                        CoroutineScope(Dispatchers.IO).launch {
+                                            try {
+                                                repository.initializeUser(
+                                                    userId = firebaseUser.uid,
+                                                    name = firebaseUser.displayName ?: "User",
+                                                    email = firebaseUser.email ?: email
+                                                )
+
+                                                // Crea notifiche iniziali se è la prima volta
+                                                repository.createInitialNotifications(firebaseUser.uid)
+
+                                                // Invia notifica di sicurezza per nuovo login
+                                                notificationManager.sendSecurityNotification(
+                                                    userId = firebaseUser.uid,
+                                                    deviceInfo = "Android Device"
+                                                )
+
+                                                // Aggiorna last active
+                                                repository.updateUserLastActive(firebaseUser.uid)
+                                            } catch (e: Exception) {
+                                                // Log error
+                                            }
+                                        }
                                     }
+
+                                    Toast.makeText(context, "Login effettuato con successo!", Toast.LENGTH_SHORT).show()
+                                    navController.navigate("home")
                                 } else {
-                                    // Login fallito
                                     val errorMessage = task.exception?.message ?: "Errore durante il login"
                                     Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
                                 }
@@ -173,8 +211,7 @@ fun Log(navController: NavHostController) {
             // Pulsante "Sign up"
             Button(
                 onClick = {
-
-                    navController.navigate("signup") // Se hai una schermata di registrazione
+                    navController.navigate("signup")
                 },
                 enabled = !isLoading,
                 modifier = Modifier

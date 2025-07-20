@@ -23,14 +23,6 @@ class Repository(
 
             // Award first login badge
             awardBadge(userId, "first_login", "First Login", "Welcome to 24+1!", "🎉")
-
-            // Create welcome notification
-            createNotification(
-                userId = userId,
-                type = "ACHIEVEMENT",
-                title = "Welcome to 24+1! 🎉",
-                message = "Start your productivity journey today!"
-            )
         }
     }
 
@@ -54,10 +46,9 @@ class Repository(
         title: String,
         description: String = "",
         category: String = "today",
-        priority: Int = 1,
-        points: Int = 10
+        priority: Int = 1
     ): String {
-        val activityId = UUID.randomUUID().toString()
+        val activityId = java.util.UUID.randomUUID().toString()
         val activity = ActivityEntity(
             id = activityId,
             userId = userId,
@@ -65,7 +56,6 @@ class Repository(
             description = description,
             category = category,
             priority = priority,
-            points = points // ← ORA FUNZIONA
         )
         activityDao.insertActivity(activity)
         return activityId
@@ -75,26 +65,32 @@ class Repository(
         return activityDao.getTodayActivities(userId)
     }
 
-    // ← CORRETTO: ora funziona
     suspend fun completeActivity(activityId: String, userId: String) {
         val activity = activityDao.getPendingActivities(userId).find { it.id == activityId }
         activity?.let {
             activityDao.updateActivityStatus(activityId, true, System.currentTimeMillis())
 
-            // Add points
+            // Add points to user
             val user = userDao.getUser(userId)
             user?.let { u ->
-                val newPoints = u.totalPoints + it.points
-                val newLevel = calculateLevel(newPoints)
-                userDao.addPoints(userId, it.points, newLevel)
+                val pointsToAdd = 10 // Base points per activity
+                val newTotalPoints = u.totalActivities + pointsToAdd
+                val newLevel = calculateLevel(newTotalPoints)
 
-                // Check for level up
-                if (newLevel > u.level) {
+                val updatedUser = u.copy(
+                    totalActivities = u.totalActivities + 1,
+                    lastActive = System.currentTimeMillis()
+                )
+                userDao.updateUser(updatedUser)
+
+                // Check for level up notification
+                if (newLevel > calculateLevel(u.totalActivities)) {
                     createNotification(
                         userId = userId,
                         type = "ACHIEVEMENT",
-                        title = "Level Up! 🆙",
-                        message = "You reached level $newLevel!"
+                        title = "🆙 Level Up!",
+                        message = "You reached level $newLevel!",
+                        actionText = "View Profile"
                     )
                 }
             }
@@ -110,10 +106,6 @@ class Repository(
         return if (total > 0) completed.toFloat() / total.toFloat() else 0f
     }
 
-    suspend fun deleteActivity(activityId: String) {
-        activityDao.deleteActivity(activityId)
-    }
-
     // ===== GAMIFICATION =====
     private suspend fun checkDailyProgress(userId: String) {
         val progress = getTodayProgress(userId)
@@ -122,9 +114,19 @@ class Repository(
         when {
             progress >= 1.0f -> {
                 awardBadge(userId, "perfect_day", "Perfect Day", "Completed all today's tasks!", "⭐")
+                createNotification(
+                    userId = userId,
+                    type = "ACHIEVEMENT",
+                    title = "⭐ Perfect Day!",
+                    message = "Congratulations! You've completed all your activities for today!",
+                    actionText = "View Stats"
+                )
             }
             completed >= 5 -> {
                 awardBadge(userId, "productive", "Productive", "Completed 5+ tasks today!", "💪")
+            }
+            completed >= 3 -> {
+                awardBadge(userId, "good_start", "Good Start", "Completed 3+ tasks today!", "👍")
             }
         }
     }
@@ -141,12 +143,13 @@ class Repository(
             )
             badgeDao.insertBadge(badge)
 
-            // Create notification
+            // Create notification for new badge
             createNotification(
                 userId = userId,
                 type = "ACHIEVEMENT",
-                title = "New Badge Unlocked! $icon",
-                message = "$name: $description"
+                title = "🏆 New Badge Unlocked!",
+                message = "$name: $description",
+                actionText = "View Badges"
             )
         }
     }
@@ -155,8 +158,8 @@ class Repository(
         return badgeDao.getUserBadges(userId)
     }
 
-    private fun calculateLevel(points: Int): Int {
-        return (points / 100) + 1 // 100 punti per livello
+    private fun calculateLevel(totalActivities: Int): Int {
+        return (totalActivities / 10) + 1 // 1 level per ogni 10 attività completate
     }
 
     // ===== NOTIFICATIONS =====
@@ -169,7 +172,7 @@ class Repository(
         actionData: String? = null
     ) {
         val notification = NotificationEntity(
-            id = UUID.randomUUID().toString(),
+            id = java.util.UUID.randomUUID().toString(),
             userId = userId,
             type = type,
             title = title,
@@ -185,6 +188,14 @@ class Repository(
         return notificationDao.getAllNotifications(userId)
     }
 
+    fun getUnreadNotifications(userId: String): Flow<List<NotificationEntity>> {
+        return notificationDao.getUnreadNotifications(userId)
+    }
+
+    fun getUnreadCount(userId: String): Flow<Int> {
+        return notificationDao.getUnreadCount(userId)
+    }
+
     suspend fun markAsRead(notificationId: String) {
         notificationDao.markAsRead(notificationId)
     }
@@ -197,12 +208,30 @@ class Repository(
         notificationDao.deleteNotification(notificationId)
     }
 
+    suspend fun addNotification(
+        userId: String,
+        type: String,
+        title: String,
+        message: String,
+        actionText: String? = null
+    ) {
+        val notification = NotificationEntity(
+            id = UUID.randomUUID().toString(),
+            userId = userId,
+            type = type,
+            title = title,
+            message = message,
+            timestamp = System.currentTimeMillis(),
+            actionText = actionText
+        )
+        notificationDao.insertNotification(notification)
+    }
+
     suspend fun createInitialNotifications(userId: String) {
-        // Controlla se esistono già notifiche
+        // Controlla se l'utente ha già notifiche
         val existingNotifications = notificationDao.getAllNotifications(userId)
 
-        // Se non ci sono notifiche, crea quelle iniziali
-        // (questo è un approccio semplificato)
+        // Se non ha notifiche, crea quelle iniziali
         val now = System.currentTimeMillis()
         val initialNotifications = listOf(
             NotificationEntity(
@@ -210,8 +239,8 @@ class Repository(
                 userId = userId,
                 type = "ACHIEVEMENT",
                 title = "🎉 Welcome to 24+1!",
-                message = "Start your productivity journey today!",
-                timestamp = now - 300000,
+                message = "Start your productivity journey today! Complete activities and earn badges.",
+                timestamp = now - 300000, // 5 minuti fa
                 isRead = false,
                 actionText = "Get Started"
             ),
@@ -219,12 +248,77 @@ class Repository(
                 id = UUID.randomUUID().toString(),
                 userId = userId,
                 type = "SYSTEM",
-                title = "Setup Complete",
-                message = "Your account has been configured successfully.",
-                timestamp = now - 600000,
-                isRead = true
+                title = "💡 Getting Started",
+                message = "Tap on activities to complete them, earn points, and unlock badges!",
+                timestamp = now - 600000, // 10 minuti fa
+                isRead = false,
+                actionText = "Learn More"
+            ),
+            NotificationEntity(
+                id = UUID.randomUUID().toString(),
+                userId = userId,
+                type = "MARKETING",
+                title = "🏆 Collect Badges",
+                message = "Complete activities and achieve milestones to unlock special badges!",
+                timestamp = now - 900000, // 15 minuti fa
+                isRead = true,
+                actionText = "View Badges"
             )
         )
         notificationDao.insertNotifications(initialNotifications)
+    }
+
+    // ===== UTILITY METHODS =====
+    suspend fun cleanupExpiredNotifications() {
+        notificationDao.deleteExpiredNotifications(System.currentTimeMillis())
+    }
+
+    suspend fun getActivityById(activityId: String): ActivityEntity? {
+        // Questo metodo richiede di aggiungere una query al DAO
+        // Per ora possiamo implementarlo diversamente se necessario
+        return null
+    }
+
+    suspend fun updateUserLastActive(userId: String) {
+        userDao.updateLastActive(userId, System.currentTimeMillis())
+    }
+
+    // Metodo per creare notifiche di test (utile durante lo sviluppo)
+    suspend fun createTestNotifications(userId: String) {
+        val now = System.currentTimeMillis()
+        val testNotifications = listOf(
+            NotificationEntity(
+                id = UUID.randomUUID().toString(),
+                userId = userId,
+                type = "ACHIEVEMENT",
+                title = "🎯 First Goal Complete!",
+                message = "You've completed your first activity! Keep up the great work.",
+                timestamp = now - 1800000, // 30 minuti fa
+                isRead = false,
+                actionText = "View Progress"
+            ),
+            NotificationEntity(
+                id = UUID.randomUUID().toString(),
+                userId = userId,
+                type = "REMINDER",
+                title = "⏰ Daily Goal Reminder",
+                message = "You have 2 activities left to complete today.",
+                timestamp = now - 3600000, // 1 ora fa
+                isRead = false,
+                actionText = "View Activities"
+            ),
+            NotificationEntity(
+                id = UUID.randomUUID().toString(),
+                userId = userId,
+                type = "SECURITY",
+                title = "🔒 New Login Detected",
+                message = "We detected a login from a new device. If this wasn't you, please secure your account.",
+                timestamp = now - 7200000, // 2 ore fa
+                isRead = true,
+                actionText = "Review Security"
+            )
+        )
+
+        notificationDao.insertNotifications(testNotifications)
     }
 }

@@ -40,6 +40,13 @@ import com.example.a24.ui.theme.primaryLight
 import com.google.firebase.auth.FirebaseAuth
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
+import com.example.a24.data.AppDatabase
+import com.example.a24.data.Repository
+import com.example.a24.managers.NotificationManager
+import com.google.firebase.auth.userProfileChangeRequest
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 @Composable
 fun SignupScreen(navController: NavHostController){
@@ -60,7 +67,6 @@ fun SignupScreen(navController: NavHostController){
 
 @Composable
 fun Signup(navController: NavHostController) {
-
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -69,6 +75,18 @@ fun Signup(navController: NavHostController) {
 
     val context = LocalContext.current
     val auth = FirebaseAuth.getInstance()
+
+    // Inizializza repository e notification manager
+    val database = remember { AppDatabase.getDatabase(context) }
+    val repository = remember {
+        Repository(
+            userDao = database.userDao(),
+            activityDao = database.activityDao(),
+            notificationDao = database.notificationDao(),
+            badgeDao = database.badgeDao()
+        )
+    }
+    val notificationManager = remember { NotificationManager(repository) }
 
     Box(
         modifier = Modifier
@@ -85,6 +103,8 @@ fun Signup(navController: NavHostController) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            // [Mantieni tutti i campi esistenti per nome, email, password, conferma password...]
+
             // Titolo "Name"
             Text(
                 text = "Name",
@@ -92,7 +112,6 @@ fun Signup(navController: NavHostController) {
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
-            // Campo per il nome
             TextField(
                 value = name,
                 onValueChange = { name = it },
@@ -104,14 +123,13 @@ fun Signup(navController: NavHostController) {
                     .padding(vertical = 8.dp)
             )
 
-            // Titolo "Email"
+            // [Altri campi...]
             Text(
                 text = "Email",
                 style = TextStyle(fontFamily = displayFontFamily, fontSize = 18.sp, color = onPrimaryLight),
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
-            // Campo per l'email
             TextField(
                 value = email,
                 onValueChange = { email = it },
@@ -123,14 +141,12 @@ fun Signup(navController: NavHostController) {
                     .padding(vertical = 8.dp)
             )
 
-            // Titolo "Password"
             Text(
                 text = "Password",
                 style = TextStyle(fontFamily = displayFontFamily, fontSize = 18.sp, color = onPrimaryLight),
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
-            // Campo per la password
             TextField(
                 value = password,
                 onValueChange = { password = it },
@@ -143,14 +159,12 @@ fun Signup(navController: NavHostController) {
                     .padding(vertical = 8.dp)
             )
 
-            // Titolo "Confirm Password"
             Text(
                 text = "Confirm Password",
                 style = TextStyle(fontFamily = displayFontFamily, fontSize = 18.sp, color = onPrimaryLight),
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
-            // Campo per conferma password
             TextField(
                 value = confirmPassword,
                 onValueChange = { confirmPassword = it },
@@ -163,7 +177,7 @@ fun Signup(navController: NavHostController) {
                     .padding(vertical = 8.dp)
             )
 
-            // Pulsante "Sign Up"
+            // Pulsante "Sign Up" AGGIORNATO
             Button(
                 onClick = {
                     when {
@@ -184,13 +198,44 @@ fun Signup(navController: NavHostController) {
                                     isLoading = false
 
                                     if (task.isSuccessful) {
-                                        // Registrazione riuscita
+                                        val user = auth.currentUser
+                                        user?.let { firebaseUser ->
+                                            // Aggiorna il profilo Firebase con il nome
+                                            val profileUpdates = userProfileChangeRequest {
+                                                displayName = name
+                                            }
+
+                                            firebaseUser.updateProfile(profileUpdates)
+
+                                            // Inizializza l'utente nel database locale
+                                            CoroutineScope(Dispatchers.IO).launch {
+                                                try {
+                                                    repository.initializeUser(
+                                                        userId = firebaseUser.uid,
+                                                        name = name,
+                                                        email = email
+                                                    )
+
+                                                    // Invia notifiche di benvenuto per nuovi utenti
+                                                    notificationManager.initializeNotificationsForNewUser(firebaseUser.uid)
+
+                                                    // Award del primo badge
+                                                    notificationManager.sendBadgeUnlockedNotification(
+                                                        userId = firebaseUser.uid,
+                                                        badgeName = "First Login",
+                                                        badgeIcon = "🎉"
+                                                    )
+                                                } catch (e: Exception) {
+                                                    // Log error
+                                                }
+                                            }
+                                        }
+
                                         Toast.makeText(context, "Account creato con successo!", Toast.LENGTH_SHORT).show()
                                         navController.navigate("login") {
                                             popUpTo("signup") { inclusive = true }
                                         }
                                     } else {
-                                        // Registrazione fallita
                                         val errorMessage = task.exception?.message ?: "Errore durante la registrazione"
                                         Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
                                     }
@@ -217,6 +262,7 @@ fun Signup(navController: NavHostController) {
                 }
             }
 
+            // Pulsante "Already have an account? Login"
             Button(
                 onClick = {
                     navController.navigate("login") {

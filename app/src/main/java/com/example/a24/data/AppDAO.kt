@@ -20,8 +20,8 @@ interface UserDao {
     @Query("UPDATE users SET badges = :badges WHERE userId = :userId")
     suspend fun updateBadges(userId: String, badges: String)
 
-    @Query("UPDATE users SET total_points = total_points + :points, level = :newLevel WHERE userId = :userId")
-    suspend fun addPoints(userId: String, points: Int, newLevel: Int)
+    @Query("UPDATE users SET total_activities = total_activities + :points WHERE userId = :userId")
+    suspend fun addPoints(userId: String, points: Int)
 
     @Query("UPDATE users SET last_active = :timestamp WHERE userId = :userId")
     suspend fun updateLastActive(userId: String, timestamp: Long)
@@ -30,7 +30,12 @@ interface UserDao {
 @Dao
 interface ActivityDao {
     // Get today's activities
-    @Query("SELECT * FROM activities WHERE userId = :userId ORDER BY created_at DESC")
+    @Query("""
+        SELECT * FROM activities 
+        WHERE userId = :userId 
+        AND date(created_at/1000, 'unixepoch') = date('now') 
+        ORDER BY priority DESC, created_at ASC
+    """)
     suspend fun getTodayActivities(userId: String): List<ActivityEntity>
 
     // Get activities by category
@@ -56,6 +61,10 @@ interface ActivityDao {
         ORDER BY completed_at DESC
     """)
     suspend fun getCompletedActivities(userId: String): List<ActivityEntity>
+
+    // Get activity by ID
+    @Query("SELECT * FROM activities WHERE id = :activityId")
+    suspend fun getActivityById(activityId: String): ActivityEntity?
 
     // Insert activity
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -92,14 +101,6 @@ interface ActivityDao {
         AND date(created_at/1000, 'unixepoch') = date('now')
     """)
     suspend fun getTotalTodayCount(userId: String): Int
-
-    @Query("""
-        SELECT SUM(points) FROM activities 
-        WHERE userId = :userId 
-        AND is_completed = 1 
-        AND date(completed_at/1000, 'unixepoch') = date('now')
-    """)
-    suspend fun getTodayPoints(userId: String): Int?
 
     @Query("""
         SELECT COUNT(*) FROM activities 
@@ -163,6 +164,10 @@ interface NotificationDao {
     // Get specific notification
     @Query("SELECT * FROM notifications WHERE id = :notificationId")
     suspend fun getNotificationById(notificationId: String): NotificationEntity?
+
+    // Get notification count for user
+    @Query("SELECT COUNT(*) FROM notifications WHERE user_id = :userId")
+    suspend fun getNotificationCount(userId: String): Int
 }
 
 @Dao
@@ -178,4 +183,10 @@ interface BadgeDao {
 
     @Query("SELECT COUNT(*) FROM user_badges WHERE userId = :userId")
     suspend fun getBadgeCount(userId: String): Int
+
+    @Query("DELETE FROM user_badges WHERE userId = :userId AND badgeId = :badgeId")
+    suspend fun deleteBadge(userId: String, badgeId: String)
+
+    @Query("UPDATE user_badges SET isVisible = :isVisible WHERE userId = :userId AND badgeId = :badgeId")
+    suspend fun updateBadgeVisibility(userId: String, badgeId: String, isVisible: Boolean)
 }

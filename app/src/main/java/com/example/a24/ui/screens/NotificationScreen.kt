@@ -25,7 +25,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.example.a24.data.AppDatabase
-import com.example.a24.data.NotificationEntity
 import com.example.a24.data.Repository
 import com.example.a24.ui.composables.AppBar
 import com.example.a24.ui.composables.SectionHeader
@@ -36,26 +35,83 @@ import com.example.a24.ui.theme.onPrimaryLightMediumContrast
 import com.example.a24.ui.theme.primaryContainerLightHighContrast
 import com.example.a24.ui.theme.primaryContainerLightMediumContrast
 import com.example.a24.ui.theme.primaryLight
-import com.example.a24.ui.viewmodel.NotificationViewModel
+import com.example.a24.ui.viewmodels.NotificationViewModel
+import com.example.a24.ui.viewmodels.NotificationViewModelFactory
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
 
+// Enum per i tipi di notifica
+enum class NotificationType {
+    ACHIEVEMENT,    // Badge sbloccati
+    SYSTEM,        // Aggiornamenti sistema
+    SECURITY,      // Login, sicurezza
+    REMINDER,      // Promemoria daily login
+    SOCIAL,        // Interazioni social (futuro)
+    MARKETING      // Nuove funzionalità
+}
+
+// Data class per le notifiche
+data class AppNotification(
+    val id: String,
+    val type: NotificationType,
+    val title: String,
+    val message: String,
+    val timestamp: Date,
+    val isRead: Boolean,
+    val actionText: String? = null
+)
 
 @Composable
 fun NotificationScreen(navController: NavHostController) {
     val context = LocalContext.current
 
-    // Inizializza ViewModel con Repository
-    val database = AppDatabase.getDatabase(context)
-    val repository = Repository(
-        database.userDao(),
-        database.activityDao(),
-        database.notificationDao(),
-        database.badgeDao()
+    // Verifica se l'utente è loggato
+    val auth = FirebaseAuth.getInstance()
+    val currentUser = auth.currentUser
+
+    if (currentUser == null) {
+        // Se l'utente non è loggato, mostra un messaggio
+        AppTheme {
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text("Please log in to view notifications")
+                Button(onClick = { navController.navigate("login") }) {
+                    Text("Go to Login")
+                }
+            }
+        }
+        return
+    }
+
+    // Inizializza database e repository
+    val database = remember { AppDatabase.getDatabase(context) }
+    val repository = remember {
+        Repository(
+            userDao = database.userDao(),
+            activityDao = database.activityDao(),
+            notificationDao = database.notificationDao(),
+            badgeDao = database.badgeDao()
+        )
+    }
+
+    // Crea ViewModel
+    val viewModel: NotificationViewModel = viewModel(
+        factory = NotificationViewModelFactory(repository)
     )
 
-    val viewModel: NotificationViewModel = viewModel {
-        NotificationViewModel(repository)
+    // Crea alcune notifiche di test se non esistono
+    LaunchedEffect(Unit) {
+        delay(1000) // Aspetta un secondo per assicurarsi che il database sia pronto
+        try {
+            viewModel.createTestNotifications()
+        } catch (e: Exception) {
+            // Ignora errori nella creazione di notifiche di test
+        }
     }
 
     AppTheme {
@@ -67,7 +123,7 @@ fun NotificationScreen(navController: NavHostController) {
 
             SectionHeader(text = "Notifications")
 
-            NotificationsContent(navController = navController, viewModel = viewModel)
+            NotificationsContent(navController, viewModel)
         }
     }
 }
@@ -77,20 +133,26 @@ fun NotificationsContent(
     navController: NavHostController,
     viewModel: NotificationViewModel
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    val context = LocalContext.current
-    var showFilterDialog by remember { mutableStateOf(false) }
+    val notificationEntities by viewModel.notifications.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val error by viewModel.error.collectAsState()
 
-    // Gestione errori
-    uiState.errorMessage?.let { error ->
-        LaunchedEffect(error) {
-            android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_LONG).show()
-            viewModel.clearErrorMessage()
-        }
+    var showFilterDialog by remember { mutableStateOf(false) }
+    var selectedFilter by remember { mutableStateOf<NotificationType?>(null) }
+
+    // Converti le entità in UI model
+    val notifications = remember(notificationEntities) {
+        notificationEntities.map { viewModel.mapToUINotification(it) }
     }
 
     // Filtra notifiche in base al filtro selezionato
-    val filteredNotifications = viewModel.getFilteredNotifications()
+    val filteredNotifications = if (selectedFilter != null) {
+        notifications.filter { it.type == selectedFilter }
+    } else {
+        notifications
+    }
+
+    val unreadCount = notifications.count { !it.isRead }
 
     Box(
         modifier = Modifier
@@ -100,62 +162,230 @@ fun NotificationsContent(
             .clip(RoundedCornerShape(16.dp))
             .background(primaryLight)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-
-            // Header con statistiche e azioni
-            NotificationHeader(
-                totalCount = filteredNotifications.size,
-                unreadCount = uiState.unreadCount,
-                selectedFilter = uiState.selectedFilter,
-                onFilterClick = { showFilterDialog = true },
-                onMarkAllRead = viewModel::markAllAsRead,
-                onCreateTest = viewModel::createTestNotification
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Lista notifiche
-            if (uiState.isLoading) {
+        when {
+            isLoading -> {
+                // Loading state
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
+                    modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator()
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator(
+                            color = onPrimaryLight
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Loading notifications...",
+                            style = TextStyle(
+                                fontFamily = displayFontFamily,
+                                fontSize = 16.sp,
+                                color = onPrimaryLight
+                            )
+                        )
+                    }
                 }
-            } else if (filteredNotifications.isEmpty()) {
-                EmptyNotificationsState(
-                    hasFilter = uiState.selectedFilter != null,
-                    onCreateTest = viewModel::createTestNotification
-                )
-            } else {
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+            }
+
+            error != null -> {
+                // Error state
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            Icons.Default.Clear,
+                            contentDescription = "Error",
+                            modifier = Modifier.size(64.dp),
+                            tint = Color.Red
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Error loading notifications",
+                            style = TextStyle(
+                                fontFamily = displayFontFamily,
+                                fontSize = 16.sp,
+                                color = onPrimaryLight
+                            )
+                        )
+                        Text(
+                            text = error!!,
+                            style = TextStyle(
+                                fontSize = 14.sp,
+                                color = onPrimaryLight.copy(alpha = 0.7f)
+                            )
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = { viewModel.refreshNotifications() },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = primaryContainerLightMediumContrast,
+                                contentColor = onPrimaryLightMediumContrast
+                            )
+                        ) {
+                            Text("Retry")
+                        }
+                    }
+                }
+            }
+
+            else -> {
+                // Content state
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f),
-                    contentPadding = PaddingValues(bottom = 16.dp)
+                        .padding(16.dp)
                 ) {
-                    items(filteredNotifications) { notification ->
-                        NotificationCard(
-                            notification = notification,
-                            onMarkAsRead = viewModel::markAsRead,
-                            onDelete = viewModel::deleteNotification,
-                            onAction = {
-                                viewModel.handleNotificationAction(notification)
-                                // Naviga in base al tipo di notifica
-                                when (notification.type) {
-                                    "ACHIEVEMENT" -> navController.navigate("profile")
-                                    "SECURITY" -> navController.navigate("profile")
-                                    "REMINDER" -> navController.navigate("home")
+                    // Header con statistiche e azioni
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "Total: ${filteredNotifications.size}",
+                                style = TextStyle(
+                                    fontFamily = displayFontFamily,
+                                    fontSize = 16.sp,
+                                    color = onPrimaryLight
+                                )
+                            )
+                            if (unreadCount > 0) {
+                                Text(
+                                    text = "$unreadCount unread",
+                                    style = TextStyle(
+                                        fontFamily = displayFontFamily,
+                                        fontSize = 14.sp,
+                                        color = Color(0xFFFF5722),
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                )
+                            }
+                        }
+
+                        Row {
+                            // Pulsante Filtro
+                            IconButton(
+                                onClick = { showFilterDialog = true }
+                            ) {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.List,
+                                    contentDescription = "Filter",
+                                    tint = onPrimaryLight
+                                )
+                            }
+
+                            // Pulsante Mark All Read
+                            if (unreadCount > 0) {
+                                IconButton(
+                                    onClick = {
+                                        viewModel.markAllAsRead()
+                                    }
+                                ) {
+                                    Icon(
+                                        Icons.Default.Done,
+                                        contentDescription = "Mark All Read",
+                                        tint = onPrimaryLight
+                                    )
                                 }
                             }
-                        )
+
+                            // Pulsante per aggiungere notifica di test
+                            IconButton(
+                                onClick = {
+                                    viewModel.createNotification(
+                                        type = NotificationType.SYSTEM,
+                                        title = "Test Notification",
+                                        message = "This is a test notification created at ${SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())}",
+                                        actionText = "Test Action"
+                                    )
+                                }
+                            ) {
+                                Icon(
+                                    Icons.Default.Add,
+                                    contentDescription = "Add Test Notification",
+                                    tint = onPrimaryLight
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Lista notifiche
+                    if (filteredNotifications.isEmpty()) {
+                        // Empty state
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Icon(
+                                    Icons.Default.Notifications,
+                                    contentDescription = "No notifications",
+                                    modifier = Modifier.size(64.dp),
+                                    tint = onPrimaryLight.copy(alpha = 0.6f)
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(
+                                    text = if (selectedFilter != null) "No notifications for this filter" else "No notifications yet",
+                                    style = TextStyle(
+                                        fontFamily = displayFontFamily,
+                                        fontSize = 16.sp,
+                                        color = onPrimaryLight.copy(alpha = 0.6f)
+                                    )
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Button(
+                                    onClick = { viewModel.createTestNotifications() },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = primaryContainerLightMediumContrast,
+                                        contentColor = onPrimaryLightMediumContrast
+                                    )
+                                ) {
+                                    Text("Create Test Notifications")
+                                }
+                            }
+                        }
+                    } else {
+                        LazyColumn(
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxHeight()
+                        ) {
+                            items(filteredNotifications) { notification ->
+                                NotificationCard(
+                                    notification = notification,
+                                    onMarkAsRead = { notificationId ->
+                                        viewModel.markAsRead(notificationId)
+                                    },
+                                    onDelete = { notificationId ->
+                                        viewModel.deleteNotification(notificationId)
+                                    },
+                                    onAction = { notificationId ->
+                                        // Gestisci azione specifica
+                                        val notification = notifications.find { it.id == notificationId }
+                                        when (notification?.type) {
+                                            NotificationType.ACHIEVEMENT -> {
+                                                navController.navigate("profile")
+                                            }
+                                            NotificationType.SECURITY -> {
+                                                navController.navigate("profile")
+                                            }
+                                            else -> {
+                                                // Default action
+                                            }
+                                        }
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -165,9 +395,9 @@ fun NotificationsContent(
     // Dialog filtro
     if (showFilterDialog) {
         FilterDialog(
-            currentFilter = uiState.selectedFilter,
+            currentFilter = selectedFilter,
             onFilterSelected = { filter ->
-                viewModel.applyFilter(filter)
+                selectedFilter = filter
                 showFilterDialog = false
             },
             onDismiss = { showFilterDialog = false }
@@ -175,88 +405,10 @@ fun NotificationsContent(
     }
 }
 
-@Composable
-fun NotificationHeader(
-    totalCount: Int,
-    unreadCount: Int,
-    selectedFilter: String?,
-    onFilterClick: () -> Unit,
-    onMarkAllRead: () -> Unit,
-    onCreateTest: () -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column {
-            Text(
-                text = "Total: $totalCount",
-                style = TextStyle(
-                    fontFamily = displayFontFamily,
-                    fontSize = 16.sp,
-                    color = onPrimaryLight
-                )
-            )
-            if (unreadCount > 0) {
-                Text(
-                    text = "$unreadCount unread",
-                    style = TextStyle(
-                        fontFamily = displayFontFamily,
-                        fontSize = 14.sp,
-                        color = Color(0xFFFF5722),
-                        fontWeight = FontWeight.Bold
-                    )
-                )
-            }
-            selectedFilter?.let {
-                Text(
-                    text = "Filter: ${getTypeDisplayName(it)}",
-                    style = TextStyle(
-                        fontFamily = displayFontFamily,
-                        fontSize = 12.sp,
-                        color = Color(0xFF2196F3)
-                    )
-                )
-            }
-        }
-
-        Row {
-            // Pulsante Test (per sviluppo)
-            IconButton(onClick = onCreateTest) {
-                Icon(
-                    Icons.Default.Add,
-                    contentDescription = "Add Test Notification",
-                    tint = onPrimaryLight
-                )
-            }
-
-            // Pulsante Filtro
-            IconButton(onClick = onFilterClick) {
-                Icon(
-                    Icons.AutoMirrored.Filled.List,
-                    contentDescription = "Filter",
-                    tint = onPrimaryLight
-                )
-            }
-
-            // Pulsante Mark All Read
-            if (unreadCount > 0) {
-                IconButton(onClick = onMarkAllRead) {
-                    Icon(
-                        Icons.Default.Done,
-                        contentDescription = "Mark All Read",
-                        tint = onPrimaryLight
-                    )
-                }
-            }
-        }
-    }
-}
-
+// Resto del codice rimane uguale...
 @Composable
 fun NotificationCard(
-    notification: NotificationEntity,
+    notification: AppNotification,
     onMarkAsRead: (String) -> Unit,
     onDelete: (String) -> Unit,
     onAction: (String) -> Unit
@@ -286,8 +438,8 @@ fun NotificationCard(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    getNotificationIcon(notification.type),
-                    contentDescription = notification.type,
+                    imageVector = getNotificationIcon(notification.type),
+                    contentDescription = notification.type.name,
                     tint = getNotificationColor(notification.type),
                     modifier = Modifier.size(20.dp)
                 )
@@ -327,7 +479,7 @@ fun NotificationCard(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = formatTimestamp(Date(notification.timestamp)),
+                    text = formatTimestamp(notification.timestamp),
                     style = TextStyle(
                         fontFamily = displayFontFamily,
                         fontSize = 12.sp,
@@ -364,7 +516,7 @@ fun NotificationCard(
                         Icon(
                             Icons.Default.Done,
                             contentDescription = "Mark as read",
-                            modifier = Modifier.size(16.dp),
+                            modifier = Modifier.size(12.dp),
                             tint = Color(0xFF2196F3)
                         )
                     }
@@ -387,51 +539,9 @@ fun NotificationCard(
 }
 
 @Composable
-fun EmptyNotificationsState(
-    hasFilter: Boolean,
-    onCreateTest: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Icon(
-                Icons.Default.Notifications,
-                contentDescription = "No notifications",
-                modifier = Modifier.size(64.dp),
-                tint = onPrimaryLight.copy(alpha = 0.6f)
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = if (hasFilter) "No notifications for this filter" else "No notifications yet",
-                style = TextStyle(
-                    fontFamily = displayFontFamily,
-                    fontSize = 16.sp,
-                    color = onPrimaryLight.copy(alpha = 0.6f)
-                )
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Button(
-                onClick = onCreateTest,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = primaryContainerLightMediumContrast,
-                    contentColor = onPrimaryLightMediumContrast
-                )
-            ) {
-                Text("Create Test Notification")
-            }
-        }
-    }
-}
-
-@Composable
 fun FilterDialog(
-    currentFilter: String?,
-    onFilterSelected: (String?) -> Unit,
+    currentFilter: NotificationType?,
+    onFilterSelected: (NotificationType?) -> Unit,
     onDismiss: () -> Unit
 ) {
     AlertDialog(
@@ -442,12 +552,7 @@ fun FilterDialog(
                 FilterOption("All", currentFilter == null) {
                     onFilterSelected(null)
                 }
-
-                val notificationTypes = listOf(
-                    "ACHIEVEMENT", "SYSTEM", "SECURITY", "REMINDER", "SOCIAL", "MARKETING"
-                )
-
-                notificationTypes.forEach { type ->
+                NotificationType.values().forEach { type ->
                     FilterOption(
                         getTypeDisplayName(type),
                         currentFilter == type
@@ -489,39 +594,36 @@ fun FilterOption(
 }
 
 // Helper functions
-fun getNotificationColor(type: String): Color {
+fun getNotificationColor(type: NotificationType): Color {
     return when (type) {
-        "ACHIEVEMENT" -> Color(0xFF4CAF50)
-        "SYSTEM" -> Color(0xFF2196F3)
-        "SECURITY" -> Color(0xFFFF5722)
-        "REMINDER" -> Color(0xFFFF9800)
-        "SOCIAL" -> Color(0xFF9C27B0)
-        "MARKETING" -> Color(0xFF00BCD4)
-        else -> Color(0xFF757575)
+        NotificationType.ACHIEVEMENT -> Color(0xFF4CAF50)
+        NotificationType.SYSTEM -> Color(0xFF2196F3)
+        NotificationType.SECURITY -> Color(0xFFFF5722)
+        NotificationType.REMINDER -> Color(0xFFFF9800)
+        NotificationType.SOCIAL -> Color(0xFF9C27B0)
+        NotificationType.MARKETING -> Color(0xFF00BCD4)
     }
 }
 
-fun getNotificationIcon(type: String): androidx.compose.ui.graphics.vector.ImageVector {
+fun getNotificationIcon(type: NotificationType): ImageVector {
     return when (type) {
-        "ACHIEVEMENT" -> Icons.Default.Star
-        "SYSTEM" -> Icons.Default.Info
-        "SECURITY" -> Icons.Default.Lock
-        "REMINDER" -> Icons.Default.ThumbUp
-        "SOCIAL" -> Icons.Default.Person
-        "MARKETING" -> Icons.Default.ShoppingCart
-        else -> Icons.Default.Notifications
+        NotificationType.ACHIEVEMENT -> Icons.Default.Star
+        NotificationType.SYSTEM -> Icons.Default.Info
+        NotificationType.SECURITY -> Icons.Default.Warning
+        NotificationType.REMINDER -> Icons.Default.Notifications
+        NotificationType.SOCIAL -> Icons.Default.Person
+        NotificationType.MARKETING -> Icons.Default.ShoppingCart
     }
 }
 
-fun getTypeDisplayName(type: String): String {
+fun getTypeDisplayName(type: NotificationType): String {
     return when (type) {
-        "ACHIEVEMENT" -> "Achievements"
-        "SYSTEM" -> "System"
-        "SECURITY" -> "Security"
-        "REMINDER" -> "Reminders"
-        "SOCIAL" -> "Social"
-        "MARKETING" -> "Updates"
-        else -> type
+        NotificationType.ACHIEVEMENT -> "Achievements"
+        NotificationType.SYSTEM -> "System"
+        NotificationType.SECURITY -> "Security"
+        NotificationType.REMINDER -> "Reminders"
+        NotificationType.SOCIAL -> "Social"
+        NotificationType.MARKETING -> "Updates"
     }
 }
 

@@ -1,204 +1,165 @@
-package com.example.a24.ui.viewmodel
+package com.example.a24.ui.viewmodels
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.a24.data.NotificationEntity
 import com.example.a24.data.Repository
+import com.example.a24.ui.screens.NotificationType
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
-
-// UI State per NotificationScreen
-data class NotificationUiState(
-    val isLoading: Boolean = false,
-    val notifications: List<NotificationEntity> = emptyList(),
-    val unreadCount: Int = 0,
-    val selectedFilter: String? = null,
-    val errorMessage: String? = null
-)
 
 class NotificationViewModel(
     private val repository: Repository
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(NotificationUiState())
-    val uiState: StateFlow<NotificationUiState> = _uiState.asStateFlow()
-
     private val auth = FirebaseAuth.getInstance()
+    private val currentUserId = auth.currentUser?.uid ?: ""
+
+    private val _notifications = MutableStateFlow<List<NotificationEntity>>(emptyList())
+    val notifications: StateFlow<List<NotificationEntity>> = _notifications.asStateFlow()
+
+    private val _isLoading = MutableStateFlow(true)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error.asStateFlow()
 
     init {
         loadNotifications()
     }
 
-    /**
-     * Carica tutte le notifiche dell'utente
-     */
     private fun loadNotifications() {
-        val userId = auth.currentUser?.uid
-        if (userId == null) {
-            _uiState.value = _uiState.value.copy(
-                errorMessage = "User not logged in"
-            )
+        if (currentUserId.isBlank()) {
+            _isLoading.value = false
+            _error.value = "User not logged in"
             return
         }
 
         viewModelScope.launch {
             try {
-                _uiState.value = _uiState.value.copy(isLoading = true)
+                _isLoading.value = true
+                _error.value = null
 
-                // Usa Flow per osservare le notifiche in tempo reale
-                repository.getNotifications(userId).collect { notifications ->
-                    val unreadCount = notifications.count { !it.isRead }
-
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        notifications = notifications,
-                        unreadCount = unreadCount
-                    )
-                }
-
+                repository.getNotifications(currentUserId)
+                    .catch { exception ->
+                        _error.value = exception.message ?: "Unknown error occurred"
+                        _notifications.value = emptyList()
+                        _isLoading.value = false
+                    }
+                    .collect { notificationList ->
+                        _notifications.value = notificationList
+                        _isLoading.value = false
+                    }
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    errorMessage = "Error loading notifications: ${e.message}"
-                )
+                _error.value = e.message ?: "Failed to load notifications"
+                _notifications.value = emptyList()
+                _isLoading.value = false
             }
         }
     }
 
-    /**
-     * Segna una notifica come letta
-     */
     fun markAsRead(notificationId: String) {
         viewModelScope.launch {
             try {
                 repository.markAsRead(notificationId)
-                // Le notifiche si aggiorneranno automaticamente grazie al Flow
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    errorMessage = "Error marking notification as read: ${e.message}"
-                )
+                _error.value = "Failed to mark notification as read"
             }
         }
     }
 
-    /**
-     * Segna tutte le notifiche come lette
-     */
     fun markAllAsRead() {
-        val userId = auth.currentUser?.uid ?: return
+        if (currentUserId.isBlank()) return
 
         viewModelScope.launch {
             try {
-                repository.markAllAsRead(userId)
-                // Le notifiche si aggiorneranno automaticamente grazie al Flow
+                repository.markAllAsRead(currentUserId)
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    errorMessage = "Error marking all notifications as read: ${e.message}"
-                )
+                _error.value = "Failed to mark all notifications as read"
             }
         }
     }
 
-    /**
-     * Elimina una notifica
-     */
     fun deleteNotification(notificationId: String) {
         viewModelScope.launch {
             try {
                 repository.deleteNotification(notificationId)
-                // Le notifiche si aggiorneranno automaticamente grazie al Flow
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    errorMessage = "Error deleting notification: ${e.message}"
-                )
+                _error.value = "Failed to delete notification"
             }
         }
     }
 
-    /**
-     * Applica filtro per tipo di notifica
-     */
-    fun applyFilter(filterType: String?) {
-        _uiState.value = _uiState.value.copy(selectedFilter = filterType)
-    }
-
-    /**
-     * Ottiene le notifiche filtrate
-     */
-    fun getFilteredNotifications(): List<NotificationEntity> {
-        val allNotifications = _uiState.value.notifications
-        val filter = _uiState.value.selectedFilter
-
-        return if (filter != null) {
-            allNotifications.filter { it.type == filter }
-        } else {
-            allNotifications
-        }
-    }
-
-    /**
-     * Pulisce i messaggi di errore
-     */
-    fun clearErrorMessage() {
-        _uiState.value = _uiState.value.copy(errorMessage = null)
-    }
-
-    /**
-     * Crea una notifica di test
-     */
-    fun createTestNotification() {
-        val userId = auth.currentUser?.uid ?: return
+    fun createNotification(
+        type: NotificationType,
+        title: String,
+        message: String,
+        actionText: String? = null
+    ) {
+        if (currentUserId.isBlank()) return
 
         viewModelScope.launch {
             try {
-                val testNotifications = listOf(
-                    Triple("ACHIEVEMENT", "🏆 New Achievement!", "You've completed 3 activities today!"),
-                    Triple("SYSTEM", "📱 App Update", "New features are available in version 2.0"),
-                    Triple("REMINDER", "⏰ Daily Reminder", "Don't forget to check in today!"),
-                    Triple("SECURITY", "🔒 Security Alert", "New login detected from Android device")
-                )
-
-                val randomNotification = testNotifications.random()
                 repository.createNotification(
-                    userId = userId,
-                    type = randomNotification.first,
-                    title = randomNotification.second,
-                    message = randomNotification.third
+                    userId = currentUserId,
+                    type = type.name,
+                    title = title,
+                    message = message,
+                    actionText = actionText
                 )
-
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    errorMessage = "Error creating test notification: ${e.message}"
-                )
+                _error.value = "Failed to create notification"
             }
         }
     }
 
-    /**
-     * Gestisce l'azione di una notifica
-     */
-    fun handleNotificationAction(notification: NotificationEntity) {
-        // Segna come letta se non lo è già
-        if (!notification.isRead) {
-            markAsRead(notification.id)
-        }
+    fun createTestNotifications() {
+        if (currentUserId.isBlank()) return
 
-        // Qui puoi aggiungere logica specifica per ogni tipo di notifica
-        when (notification.type) {
-            "ACHIEVEMENT" -> {
-                // Naviga alla schermata badge/profilo
-                // Questo verrà gestito nella UI
+        viewModelScope.launch {
+            try {
+                repository.createTestNotifications(currentUserId)
+            } catch (e: Exception) {
+                _error.value = "Failed to create test notifications"
             }
-            "SECURITY" -> {
-                // Naviga alle impostazioni di sicurezza
-            }
-            "REMINDER" -> {
-                // Naviga alla home per il check-in
-            }
-            // Altri tipi...
         }
+    }
+
+    fun refreshNotifications() {
+        loadNotifications()
+    }
+
+    // Convert NotificationEntity to your UI model
+    fun mapToUINotification(entity: NotificationEntity): com.example.a24.ui.screens.AppNotification {
+        return com.example.a24.ui.screens.AppNotification(
+            id = entity.id,
+            type = try {
+                NotificationType.valueOf(entity.type)
+            } catch (e: Exception) {
+                NotificationType.SYSTEM
+            },
+            title = entity.title,
+            message = entity.message,
+            timestamp = java.util.Date(entity.timestamp),
+            isRead = entity.isRead,
+            actionText = entity.actionText
+        )
+    }
+}
+
+class NotificationViewModelFactory(
+    private val repository: Repository
+) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(NotificationViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return NotificationViewModel(repository) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
     }
 }
