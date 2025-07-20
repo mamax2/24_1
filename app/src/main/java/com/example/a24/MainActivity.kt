@@ -12,7 +12,6 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
 import com.example.a24.data.AppDatabase
 import com.example.a24.data.Repository
-import com.example.a24.data.UserEntity
 import com.example.a24.ui.theme.AppTheme
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
@@ -61,12 +60,42 @@ class MainActivity : ComponentActivity() {
             try {
                 repository.initializeUser(userId, name, email)
                 repository.createInitialNotifications(userId)
+
+                // Crea alcune notifiche di benvenuto se è il primo accesso
+                createWelcomeNotifications(userId)
+
             } catch (e: Exception) {
+                // Log error but don't crash
                 e.printStackTrace()
             }
         }
     }
 
+    private suspend fun createWelcomeNotifications(userId: String) {
+        try {
+            // Controlla se esistono già notifiche per evitare duplicati
+            val existingUser = repository.getUser(userId)
+            existingUser?.let { user ->
+                if (user.createdAt == user.lastActive) { // Primo accesso
+                    repository.createNotification(
+                        userId = userId,
+                        type = "ACHIEVEMENT",
+                        title = "🎉 Welcome to 24+1!",
+                        message = "You've successfully created your account. Start your productivity journey!",
+                        actionText = "Get Started"
+                    )
+
+                    repository.createNotification(
+                        userId = userId,
+                        type = "SYSTEM",
+                        title = "📱 Setup Complete",
+                        message = "Your account has been configured. You can now track your daily activities!",
+                        actionText = "View Profile"
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
 }
-
-
