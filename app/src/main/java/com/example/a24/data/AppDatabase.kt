@@ -12,7 +12,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         NotificationEntity::class,
         UserBadgeEntity::class
     ],
-    version = 2, // ← AUMENTATO DA 1 A 2
+    version = 2,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -26,14 +26,11 @@ abstract class AppDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
-        // Migrazione dalla versione 1 alla 2
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(database: SupportSQLiteDatabase) {
-                // Aggiungi i campi mancanti alla tabella users
                 database.execSQL("ALTER TABLE users ADD COLUMN total_points INTEGER NOT NULL DEFAULT 0")
                 database.execSQL("ALTER TABLE users ADD COLUMN level INTEGER NOT NULL DEFAULT 1")
 
-                // Aggiungi il campo points alla tabella activities
                 database.execSQL("ALTER TABLE activities ADD COLUMN points INTEGER NOT NULL DEFAULT 10")
             }
         }
@@ -45,7 +42,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "app_database"
                 )
-                    .addMigrations(MIGRATION_1_2) // ← AGGIUNGI LA MIGRAZIONE
+                    .addMigrations(MIGRATION_1_2)
                     .build()
                 INSTANCE = instance
                 instance

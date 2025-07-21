@@ -42,7 +42,7 @@ import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 import com.example.a24.data.AppDatabase
 import com.example.a24.data.Repository
-import com.example.a24.managers.NotificationManager
+import com.example.a24.ui.managers.NotificationManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -73,7 +73,6 @@ fun Log(navController: NavHostController) {
     val context = LocalContext.current
     val auth = FirebaseAuth.getInstance()
 
-    // Inizializza repository e notification manager
     val database = remember { AppDatabase.getDatabase(context) }
     val repository = remember {
         Repository(
@@ -100,14 +99,12 @@ fun Log(navController: NavHostController) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Titolo "Email"
             Text(
                 text = "Email",
                 style = TextStyle(fontFamily = displayFontFamily, fontSize = 18.sp, color = onPrimaryLight),
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
-            // Campo per l'email
             TextField(
                 value = email,
                 onValueChange = { email = it },
@@ -119,14 +116,12 @@ fun Log(navController: NavHostController) {
                     .padding(vertical = 8.dp)
             )
 
-            // Titolo "Password"
             Text(
                 text = "Password",
                 style = TextStyle(fontFamily = displayFontFamily, fontSize = 18.sp, color = onPrimaryLight),
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
-            // Campo per la password
             TextField(
                 value = password,
                 onValueChange = { password = it },
@@ -139,7 +134,6 @@ fun Log(navController: NavHostController) {
                     .padding(vertical = 8.dp)
             )
 
-            // Pulsante "Login"
             Button(
                 onClick = {
                     if (email.isNotBlank() && password.isNotBlank()) {
@@ -152,7 +146,6 @@ fun Log(navController: NavHostController) {
                                 if (task.isSuccessful) {
                                     val user = auth.currentUser
                                     user?.let { firebaseUser ->
-                                        // Inizializza l'utente nel database locale
                                         CoroutineScope(Dispatchers.IO).launch {
                                             try {
                                                 repository.initializeUser(
@@ -161,19 +154,15 @@ fun Log(navController: NavHostController) {
                                                     email = firebaseUser.email ?: email
                                                 )
 
-                                                // Crea notifiche iniziali se è la prima volta
                                                 repository.createInitialNotifications(firebaseUser.uid)
 
-                                                // Invia notifica di sicurezza per nuovo login
                                                 notificationManager.sendSecurityNotification(
                                                     userId = firebaseUser.uid,
                                                     deviceInfo = "Android Device"
                                                 )
 
-                                                // Aggiorna last active
                                                 repository.updateUserLastActive(firebaseUser.uid)
                                             } catch (e: Exception) {
-                                                // Log error
                                             }
                                         }
                                     }
@@ -208,7 +197,6 @@ fun Log(navController: NavHostController) {
                 }
             }
 
-            // Pulsante "Sign up"
             Button(
                 onClick = {
                     navController.navigate("signup")

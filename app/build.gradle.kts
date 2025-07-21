@@ -82,13 +82,9 @@ dependencies {
 
     // Annotations
     implementation("org.jetbrains:annotations:23.0.0")
+    // Intent
+    implementation(libs.androidx.activity.compose)
 
-    // Testing
-    testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.ui.test.junit4)
-    debugImplementation(libs.androidx.ui.tooling)
-    debugImplementation(libs.androidx.ui.test.manifest)
 }
+
+private fun DependencyHandlerScope.kapt(compiler: Provider<MinimalExternalModuleDependency>) {}

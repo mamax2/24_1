@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-// UI State per HomeScreen
 data class HomeUiState(
     val isLoading: Boolean = false,
     val activities: List<ActivityEntity> = emptyList(),
@@ -35,9 +34,7 @@ class HomeViewModel(
         loadHomeData()
     }
 
-    /**
-     * Carica tutti i dati necessari per la HomeScreen
-     */
+
     private fun loadHomeData() {
         val userId = auth.currentUser?.uid
         if (userId == null) {
@@ -88,9 +85,7 @@ class HomeViewModel(
         }
     }
 
-    /**
-     * Aggiunge una nuova attività
-     */
+
     fun addActivity(
         title: String,
         description: String = "",
@@ -113,11 +108,11 @@ class HomeViewModel(
                     priority = priority,
                 )
 
-                // Debug: verifica che l'attività sia stata aggiunta
+                // Debug
                 println("DEBUG: Activity added with ID: $activityId")
 
                 // Ricarica i dati
-                loadHomeData()
+                refreshData()
 
             } catch (e: Exception) {
                 println("DEBUG: Error adding activity: ${e.message}")
@@ -131,9 +126,7 @@ class HomeViewModel(
         }
     }
 
-    /**
-     * Marca un'attività come completata
-     */
+
     fun completeActivity(activityId: String) {
         val userId = auth.currentUser?.uid ?: return
 
@@ -142,7 +135,7 @@ class HomeViewModel(
                 repository.completeActivity(activityId, userId)
 
                 // Ricarica i dati
-                loadHomeData()
+                refreshData()
 
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
@@ -152,25 +145,18 @@ class HomeViewModel(
         }
     }
 
-    /**
-     * Ricarica i dati (pull-to-refresh)
-     */
+
     fun refreshData() {
         loadHomeData()
     }
 
 
-    /**
-     * Pulisce i messaggi di errore
-     */
+
     fun clearErrorMessage() {
         _uiState.value = _uiState.value.copy(errorMessage = null)
     }
 
-    /**
-     * Aggiunge alcune attività di esempio per testing
-     * (questa funzione può essere rimossa una volta testata l'app)
-     */
+
     fun addSampleActivities() {
         val userId = auth.currentUser?.uid ?: return
 
@@ -194,7 +180,7 @@ class HomeViewModel(
                 }
 
                 // Ricarica i dati
-                loadHomeData()
+                refreshData()
 
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(

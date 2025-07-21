@@ -29,7 +29,6 @@ interface UserDao {
 
 @Dao
 interface ActivityDao {
-    // Get today's activities
     @Query("""
         SELECT * FROM activities 
         WHERE userId = :userId 
@@ -38,7 +37,6 @@ interface ActivityDao {
     """)
     suspend fun getTodayActivities(userId: String): List<ActivityEntity>
 
-    // Get activities by category
     @Query("""
         SELECT * FROM activities 
         WHERE userId = :userId AND category = :category 
@@ -46,7 +44,6 @@ interface ActivityDao {
     """)
     suspend fun getActivitiesByCategory(userId: String, category: String): List<ActivityEntity>
 
-    // Get pending activities
     @Query("""
         SELECT * FROM activities 
         WHERE userId = :userId AND is_completed = 0 
@@ -54,7 +51,6 @@ interface ActivityDao {
     """)
     suspend fun getPendingActivities(userId: String): List<ActivityEntity>
 
-    // Get completed activities
     @Query("""
         SELECT * FROM activities 
         WHERE userId = :userId AND is_completed = 1 
@@ -62,19 +58,15 @@ interface ActivityDao {
     """)
     suspend fun getCompletedActivities(userId: String): List<ActivityEntity>
 
-    // Get activity by ID
     @Query("SELECT * FROM activities WHERE id = :activityId")
     suspend fun getActivityById(activityId: String): ActivityEntity?
 
-    // Insert activity
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertActivity(activity: ActivityEntity)
 
-    // Update activity
     @Update
     suspend fun updateActivity(activity: ActivityEntity)
 
-    // Mark as completed
     @Query("""
         UPDATE activities 
         SET is_completed = :isCompleted, completed_at = :completedAt 
@@ -82,11 +74,9 @@ interface ActivityDao {
     """)
     suspend fun updateActivityStatus(activityId: String, isCompleted: Boolean, completedAt: Long?)
 
-    // Delete activity
     @Query("DELETE FROM activities WHERE id = :activityId")
     suspend fun deleteActivity(activityId: String)
 
-    // Statistics queries
     @Query("""
         SELECT COUNT(*) FROM activities 
         WHERE userId = :userId 
@@ -113,59 +103,45 @@ interface ActivityDao {
 
 @Dao
 interface NotificationDao {
-    // Get all notifications for user (ordered by timestamp DESC)
     @Query("SELECT * FROM notifications WHERE user_id = :userId ORDER BY timestamp DESC")
     fun getAllNotifications(userId: String): Flow<List<NotificationEntity>>
 
-    // Get unread notifications
     @Query("SELECT * FROM notifications WHERE user_id = :userId AND is_read = 0 ORDER BY timestamp DESC")
     fun getUnreadNotifications(userId: String): Flow<List<NotificationEntity>>
 
-    // Get notifications by type
     @Query("SELECT * FROM notifications WHERE user_id = :userId AND type = :type ORDER BY timestamp DESC")
     fun getNotificationsByType(userId: String, type: String): Flow<List<NotificationEntity>>
 
-    // Count unread notifications
     @Query("SELECT COUNT(*) FROM notifications WHERE user_id = :userId AND is_read = 0")
     fun getUnreadCount(userId: String): Flow<Int>
 
-    // Insert notification
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertNotification(notification: NotificationEntity)
 
-    // Insert multiple notifications
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertNotifications(notifications: List<NotificationEntity>)
 
-    // Update notification
     @Update
     suspend fun updateNotification(notification: NotificationEntity)
 
-    // Mark as read
     @Query("UPDATE notifications SET is_read = 1 WHERE id = :notificationId")
     suspend fun markAsRead(notificationId: String)
 
-    // Mark all as read for user
     @Query("UPDATE notifications SET is_read = 1 WHERE user_id = :userId")
     suspend fun markAllAsRead(userId: String)
 
-    // Delete notification
     @Query("DELETE FROM notifications WHERE id = :notificationId")
     suspend fun deleteNotification(notificationId: String)
 
-    // Delete all notifications for user
     @Query("DELETE FROM notifications WHERE user_id = :userId")
     suspend fun deleteAllNotifications(userId: String)
 
-    // Delete expired notifications
     @Query("DELETE FROM notifications WHERE expires_at IS NOT NULL AND expires_at < :currentTime")
     suspend fun deleteExpiredNotifications(currentTime: Long)
 
-    // Get specific notification
     @Query("SELECT * FROM notifications WHERE id = :notificationId")
     suspend fun getNotificationById(notificationId: String): NotificationEntity?
 
-    // Get notification count for user
     @Query("SELECT COUNT(*) FROM notifications WHERE user_id = :userId")
     suspend fun getNotificationCount(userId: String): Int
 }

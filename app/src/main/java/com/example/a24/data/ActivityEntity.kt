@@ -30,10 +30,10 @@ data class ActivityEntity(
     val isCompleted: Boolean = false,
 
     @ColumnInfo(name = "category")
-    val category: String = "today", // "today", "tomorrow", "week"
+    val category: String = "today",
 
     @ColumnInfo(name = "priority")
-    val priority: Int = 1, // 0=low, 1=medium, 2=high
+    val priority: Int = 1,
 
     @ColumnInfo(name = "points")
     val points: Int = 10,

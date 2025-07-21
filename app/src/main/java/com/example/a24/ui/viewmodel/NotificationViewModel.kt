@@ -118,17 +118,7 @@ class NotificationViewModel(
         }
     }
 
-    fun createTestNotifications() {
-        if (currentUserId.isBlank()) return
 
-        viewModelScope.launch {
-            try {
-                repository.createTestNotifications(currentUserId)
-            } catch (e: Exception) {
-                _error.value = "Failed to create test notifications"
-            }
-        }
-    }
 
     fun refreshNotifications() {
         loadNotifications()

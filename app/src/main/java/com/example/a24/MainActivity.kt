@@ -23,7 +23,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Inizializza il database
         initializeDatabase()
 
         enableEdgeToEdge()
@@ -65,7 +64,6 @@ class MainActivity : ComponentActivity() {
                 createWelcomeNotifications(userId)
 
             } catch (e: Exception) {
-                // Log error but don't crash
                 e.printStackTrace()
             }
         }

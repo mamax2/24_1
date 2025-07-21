@@ -31,7 +31,7 @@ data class NotificationEntity(
     val actionText: String? = null,
 
     @ColumnInfo(name = "action_data")
-    val actionData: String? = null, // JSON per dati extra
+    val actionData: String? = null,
 
     @ColumnInfo(name = "priority")
     val priority: Int = 0, // 0=bassa, 1=media, 2=alta

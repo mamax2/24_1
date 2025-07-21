@@ -1,54 +1,46 @@
 package com.example.a24.ui.screens
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBox
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
+import com.example.a24.data.AppDatabase
+import com.example.a24.data.Repository
 import com.example.a24.ui.composables.AppBar
 import com.example.a24.ui.composables.SectionHeader
 import com.example.a24.ui.theme.AppTheme
@@ -59,20 +51,14 @@ import com.example.a24.ui.theme.primaryContainerLightHighContrast
 import com.example.a24.ui.theme.primaryContainerLightMediumContrast
 import com.example.a24.ui.theme.primaryLight
 import com.google.firebase.auth.FirebaseAuth
-import android.widget.Toast
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextAlign
 import com.google.firebase.auth.userProfileChangeRequest
-import com.example.a24.data.AppDatabase
-import com.example.a24.data.Repository
-import com.example.a24.data.UserEntity
-import com.example.a24.data.UserBadgeEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.io.File
+import java.io.FileOutputStream
 
-// Data class per i badge con i dati reali dal database
+// Data class per i badge
 data class Badge(
     val id: String,
     val name: String,
@@ -83,16 +69,13 @@ data class Badge(
 )
 
 @Composable
-fun ProfileScreen(navController: NavHostController){
+fun ProfileScreen(navController: NavHostController) {
     AppTheme {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
+            modifier = Modifier.fillMaxSize()
         ) {
             AppBar(currentRoute = "profile", navController = navController)
-
             SectionHeader(text = "Profile")
-
             ProfileContent(navController)
         }
     }
@@ -100,93 +83,124 @@ fun ProfileScreen(navController: NavHostController){
 
 @Composable
 fun ProfileContent(navController: NavHostController) {
-    val context = LocalContext.current
-    val auth = FirebaseAuth.getInstance()
-    val currentUser = auth.currentUser
-    val scrollState = rememberScrollState()
-
-    // Stati per UI
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var profileImageUrl by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     var showImagePicker by remember { mutableStateOf(false) }
+    var selectedBadge by remember { mutableStateOf<Badge?>(null) }
 
-    // Stati per dati dal database
-    var userEntity by remember { mutableStateOf<UserEntity?>(null) }
-    var userBadges by remember { mutableStateOf<List<UserBadgeEntity>>(emptyList()) }
-    var isLoadingData by remember { mutableStateOf(true) }
+    val context = LocalContext.current
+    val auth = FirebaseAuth.getInstance()
+    val currentUser = auth.currentUser
+    val scrollState = rememberScrollState()
 
-    // Inizializza repository
+    val database = remember { AppDatabase.getDatabase(context) }
     val repository = remember {
-        val database = AppDatabase.getDatabase(context)
         Repository(
-            database.userDao(),
-            database.activityDao(),
-            database.notificationDao(),
-            database.badgeDao()
+            userDao = database.userDao(),
+            activityDao = database.activityDao(),
+            notificationDao = database.notificationDao(),
+            badgeDao = database.badgeDao()
         )
     }
 
-    // Carica i dati dell'utente all'avvio
-    LaunchedEffect(currentUser) {
-        currentUser?.let { user ->
-            // Dati Firebase
-            email = user.email ?: ""
-            name = user.displayName ?: ""
-            profileImageUrl = user.photoUrl?.toString()
+    var tempPhotoUri by remember { mutableStateOf<Uri?>(null) }
 
-            // Dati dal database
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success) {
+            tempPhotoUri?.let { uri ->
+                val savedImagePath = saveImageToAppStorage(context, uri)
+                if (savedImagePath != null) {
+                    profileImageUrl = savedImagePath
+                    currentUser?.let { user ->
+                        CoroutineScope(Dispatchers.IO).launch {
+                            repository.updateUserProfile(
+                                userId = user.uid,
+                                name = name,
+                                profileImageUrl = savedImagePath
+                            )
+                        }
+                    }
+                    Toast.makeText(context, "Photo saved!", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
             try {
-                val userId = user.uid
-                userEntity = repository.getUser(userId)
-                userBadges = repository.getUserBadges(userId)
+                val photoFile = File(context.getExternalFilesDir(null), "temp_${System.currentTimeMillis()}.jpg")
+                val photoUri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", photoFile)
+                tempPhotoUri = photoUri
+                cameraLauncher.launch(photoUri)
+            } catch (e: Exception) {
+                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            Toast.makeText(context, "Camera permission required", Toast.LENGTH_SHORT).show()
+        }
+    }
 
-                // Se l'utente ha un nome nel database, usa quello
-                userEntity?.let { dbUser ->
-                    if (dbUser.name.isNotEmpty()) {
-                        name = dbUser.name
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { selectedUri ->
+            val savedImagePath = saveImageToAppStorage(context, selectedUri)
+            if (savedImagePath != null) {
+                profileImageUrl = savedImagePath
+                currentUser?.let { user ->
+                    CoroutineScope(Dispatchers.IO).launch {
+                        repository.updateUserProfile(
+                            userId = user.uid,
+                            name = name,
+                            profileImageUrl = savedImagePath
+                        )
                     }
                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            } finally {
-                isLoadingData = false
+                Toast.makeText(context, "Photo updated!", Toast.LENGTH_SHORT).show()
             }
-        } ?: run {
-            isLoadingData = false
         }
     }
 
-    // Converti badge dal database in formato UI
-    val badges = remember(userBadges) {
-        val allBadges = listOf(
-            Badge("first_login", "First Login", "Primo accesso all'app", "🎉", false, Color(0xFF4CAF50)),
-            Badge("week_streak", "Week Streak", "7 giorni consecutivi", "🔥", false, Color(0xFFFF5722)),
-            Badge("month_active", "Monthly Active", "30 giorni di attività", "⭐", false, Color(0xFF9E9E9E)),
-            Badge("social_share", "Social Share", "Condiviso sui social", "📱", false, Color(0xFF2196F3)),
-            Badge("productive", "Productive", "Completate 5+ attività", "💪", false, Color(0xFFFF9800)),
-            Badge("perfect_day", "Perfect Day", "Giornata perfetta", "⭐", false, Color(0xFFFFD700))
+    val badges = remember {
+        listOf(
+            Badge("first_login", "First Login", "Welcome to 24+1! You joined our community.", "🎉", true, Color(0xFF4CAF50)),
+            Badge("week_streak", "Week Streak", "Maintained activity for 7 consecutive days.", "🔥", true, Color(0xFFFF5722)),
+            Badge("month_active", "Monthly Active", "Stay active for 30 days to unlock this badge.", "⭐", false, Color(0xFF9E9E9E)),
+            Badge("achievement", "Achiever", "Complete 10 objectives to earn this badge.", "🏆", false, Color(0xFF9E9E9E)),
         )
+    }
 
-        // Marca come sbloccati i badge che l'utente ha
-        val unlockedBadgeIds = userBadges.map { it.badgeId }.toSet()
-        allBadges.map { badge ->
-            badge.copy(isUnlocked = unlockedBadgeIds.contains(badge.id))
+    LaunchedEffect(currentUser) {
+        currentUser?.let { user ->
+            email = user.email ?: ""
+            name = user.displayName ?: ""
+
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    val userEntity = repository.getUser(user.uid)
+                    userEntity?.profileImageUrl?.let { savedImageUrl ->
+                        if (File(savedImageUrl).exists()) {
+                            profileImageUrl = savedImageUrl
+                        }
+                    }
+
+                    if (profileImageUrl == null) {
+                        profileImageUrl = user.photoUrl?.toString()
+                    }
+                } catch (e: Exception) {
+                    profileImageUrl = user.photoUrl?.toString()
+                }
+            }
         }
     }
 
-    if (isLoadingData) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            CircularProgressIndicator()
-        }
-        return
-    }
-
-    // UI principale
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -202,48 +216,52 @@ fun ProfileContent(navController: NavHostController) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Top
         ) {
-
-            // SEZIONE FOTO PROFILO
             Box(
                 modifier = Modifier
                     .size(100.dp)
-                    .clip(CircleShape)
-                    .background(Color.White)
-                    .border(3.dp, onPrimaryLight, CircleShape)
-                    .clickable { showImagePicker = true },
-                contentAlignment = Alignment.Center
+                    .clickable { showImagePicker = true }
             ) {
-                if (profileImageUrl != null) {
-                    AsyncImage(
-                        model = profileImageUrl,
-                        contentDescription = "Profile Picture",
-                        modifier = Modifier
-                            .size(94.dp)
-                            .clip(CircleShape),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Icon(
-                        Icons.Default.Person,
-                        contentDescription = "Default Profile",
-                        modifier = Modifier.size(50.dp),
-                        tint = onPrimaryLight
-                    )
-                }
-
-                // Icona camera sovrapposta
                 Box(
                     modifier = Modifier
-                        .size(30.dp)
+                        .size(100.dp)
+                        .clip(CircleShape)
+                        .background(Color.White)
+                        .border(3.dp, onPrimaryLight, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (profileImageUrl != null) {
+                        AsyncImage(
+                            model = profileImageUrl,
+                            contentDescription = "Profile Picture",
+                            modifier = Modifier
+                                .size(94.dp)
+                                .clip(CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Icon(
+                            Icons.Default.Person,
+                            contentDescription = "Default Profile",
+                            modifier = Modifier.size(50.dp),
+                            tint = onPrimaryLight
+                        )
+                    }
+                }
+
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
                         .clip(CircleShape)
                         .background(primaryContainerLightMediumContrast)
-                        .align(Alignment.BottomEnd),
+                        .border(2.dp, Color.White, CircleShape)
+                        .align(Alignment.BottomEnd)
+                        .offset(x = (-2).dp, y = (-2).dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         Icons.Default.Add,
                         contentDescription = "Change Photo",
-                        modifier = Modifier.size(16.dp),
+                        modifier = Modifier.size(18.dp),
                         tint = onPrimaryLightMediumContrast
                     )
                 }
@@ -251,48 +269,6 @@ fun ProfileContent(navController: NavHostController) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // SEZIONE STATISTICHE UTENTE
-            userEntity?.let { user ->
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.7f))
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "Level ${user.level}",
-                            style = TextStyle(
-                                fontFamily = displayFontFamily,
-                                fontSize = 24.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF4CAF50)
-                            )
-                        )
-                        Text(
-                            text = "${user.totalPoints} Points",
-                            style = TextStyle(
-                                fontFamily = displayFontFamily,
-                                fontSize = 16.sp,
-                                color = onPrimaryLight
-                            )
-                        )
-                        Text(
-                            text = "${user.currentStreak} Day Streak",
-                            style = TextStyle(
-                                fontFamily = displayFontFamily,
-                                fontSize = 14.sp,
-                                color = onPrimaryLight.copy(alpha = 0.7f)
-                            )
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-
-            // SEZIONE INFORMAZIONI PERSONALI
             Text(
                 text = "Name",
                 style = TextStyle(fontFamily = displayFontFamily, fontSize = 18.sp, color = onPrimaryLight),
@@ -329,7 +305,6 @@ fun ProfileContent(navController: NavHostController) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // SEZIONE BADGE
             Text(
                 text = "Achievements",
                 style = TextStyle(
@@ -342,52 +317,53 @@ fun ProfileContent(navController: NavHostController) {
             )
 
             LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(horizontal = 4.dp)
             ) {
                 items(badges) { badge ->
-                    BadgeCard(badge = badge)
+                    BadgeCard(
+                        badge = badge,
+                        onClick = { selectedBadge = badge }
+                    )
                 }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // PULSANTE SAVE PROFILE
             Button(
                 onClick = {
                     if (name.isBlank()) {
-                        Toast.makeText(context, "Il nome non può essere vuoto", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Name cannot be empty", Toast.LENGTH_SHORT).show()
                     } else {
                         isLoading = true
-
-                        // Aggiorna Firebase
                         val profileUpdates = userProfileChangeRequest {
                             displayName = name
+                            if (profileImageUrl != null && profileImageUrl!!.isNotEmpty()) {
+                                try {
+                                    photoUri = Uri.parse(profileImageUrl)
+                                } catch (e: Exception) {
+                                }
+                            }
                         }
 
                         currentUser?.updateProfile(profileUpdates)
                             ?.addOnCompleteListener { task ->
-                                if (task.isSuccessful) {
-                                    // Aggiorna anche il database locale
-                                    currentUser.uid.let { userId ->
-                                        CoroutineScope(Dispatchers.IO).launch {
-                                            try {
-                                                repository.updateUserProfile(userId, name, profileImageUrl)
-                                                CoroutineScope(Dispatchers.Main).launch {
-                                                    isLoading = false
-                                                    Toast.makeText(context, "Profilo aggiornato!", Toast.LENGTH_SHORT).show()
-                                                }
-                                            } catch (e: Exception) {
-                                                CoroutineScope(Dispatchers.Main).launch {
-                                                    isLoading = false
-                                                    Toast.makeText(context, "Errore: ${e.message}", Toast.LENGTH_LONG).show()
-                                                }
-                                            }
-                                        }
+                                currentUser.let { user ->
+                                    CoroutineScope(Dispatchers.IO).launch {
+                                        repository.updateUserProfile(
+                                            userId = user.uid,
+                                            name = name,
+                                            profileImageUrl = profileImageUrl
+                                        )
                                     }
+                                }
+
+                                isLoading = false
+                                if (task.isSuccessful) {
+                                    Toast.makeText(context, "Profile updated!", Toast.LENGTH_SHORT).show()
                                 } else {
-                                    isLoading = false
-                                    Toast.makeText(context, "Errore: ${task.exception?.message}", Toast.LENGTH_LONG).show()
+                                    Toast.makeText(context, "Error: ${task.exception?.message}", Toast.LENGTH_LONG).show()
                                 }
                             }
                     }
@@ -411,7 +387,6 @@ fun ProfileContent(navController: NavHostController) {
                 }
             }
 
-            // PULSANTE LOGOUT
             Button(
                 onClick = {
                     auth.signOut()
@@ -432,29 +407,164 @@ fun ProfileContent(navController: NavHostController) {
         }
     }
 
-    // Dialog per scelta foto
     if (showImagePicker) {
         AlertDialog(
             onDismissRequest = { showImagePicker = false },
             title = { Text("Choose Photo") },
-            text = { Text("Come vuoi aggiungere la tua foto profilo?") },
+            text = { Text("How would you like to add your profile photo?") },
             confirmButton = {
-                Row {
-                    TextButton(
-                        onClick = {
-                            showImagePicker = false
-                            Toast.makeText(context, "Camera feature coming soon!", Toast.LENGTH_SHORT).show()
+                Column {
+                    Row {
+                        TextButton(
+                            onClick = {
+                                showImagePicker = false
+                                when (PackageManager.PERMISSION_GRANTED) {
+                                    ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) -> {
+                                        try {
+                                            val photoFile = File(context.getExternalFilesDir(null), "temp_${System.currentTimeMillis()}.jpg")
+                                            val photoUri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", photoFile)
+                                            tempPhotoUri = photoUri
+                                            cameraLauncher.launch(photoUri)
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                    else -> {
+                                        cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                                    }
+                                }
+                            }
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Camera")
                         }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        TextButton(
+                            onClick = {
+                                showImagePicker = false
+                                galleryLauncher.launch("image/*")
+                            }
+                        ) {
+                            Icon(Icons.Default.AccountBox, contentDescription = null)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Gallery")
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    TextButton(
+                        onClick = { showImagePicker = false },
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = null)
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Camera")
+                        Text("Cancel")
                     }
                 }
             },
-            dismissButton = {
-                TextButton(onClick = { showImagePicker = false }) {
-                    Text("Cancel")
+            dismissButton = {}
+        )
+    }
+
+    selectedBadge?.let { badge ->
+        AlertDialog(
+            onDismissRequest = { selectedBadge = null },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = badge.icon,
+                        fontSize = 32.sp,
+                        modifier = Modifier.padding(end = 12.dp)
+                    )
+                    Column {
+                        Text(
+                            text = badge.name,
+                            style = TextStyle(
+                                fontFamily = displayFontFamily,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (badge.isUnlocked) badge.color else Color.Gray
+                            )
+                        )
+                        Text(
+                            text = if (badge.isUnlocked) "UNLOCKED" else "LOCKED",
+                            style = TextStyle(
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (badge.isUnlocked) badge.color.copy(alpha = 0.8f) else Color.Gray.copy(alpha = 0.6f)
+                            )
+                        )
+                    }
+                }
+            },
+            text = {
+                Column {
+                    Text(
+                        text = badge.description,
+                        style = TextStyle(fontSize = 16.sp),
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+
+                    if (!badge.isUnlocked) {
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = Color.DarkGray.copy(alpha = 0.1f)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "💡",
+                                    fontSize = 20.sp,
+                                    modifier = Modifier.padding(end = 8.dp)
+                                )
+                                Text(
+                                    text = "Keep using the app to unlock this badge!",
+                                    style = TextStyle(
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Color.DarkGray.copy(alpha = 0.8f)
+                                    )
+                                )
+                            }
+                        }
+                    } else {
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = badge.color.copy(alpha = 0.1f)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "🎉",
+                                    fontSize = 20.sp,
+                                    modifier = Modifier.padding(end = 8.dp)
+                                )
+                                Text(
+                                    text = "Congratulations! You've earned this badge.",
+                                    style = TextStyle(
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = badge.color.copy(alpha = 0.8f)
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { selectedBadge = null }) {
+                    Text("Close")
                 }
             }
         )
@@ -462,18 +572,30 @@ fun ProfileContent(navController: NavHostController) {
 }
 
 @Composable
-fun BadgeCard(badge: Badge) {
+fun BadgeCard(
+    badge: Badge,
+    onClick: () -> Unit
+) {
     Card(
         modifier = Modifier
-            .width(80.dp)
-            .height(100.dp),
+            .width(90.dp)
+            .height(110.dp)
+            .clickable { onClick() },
         colors = CardDefaults.cardColors(
-            containerColor = if (badge.isUnlocked)
-                badge.color.copy(alpha = 0.1f)
-            else
-                Color.Gray.copy(alpha = 0.1f)
+            containerColor = if (badge.isUnlocked) {
+                badge.color.copy(alpha = 0.15f)
+            } else {
+                Color.Gray.copy(alpha = 0.05f)
+            }
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (badge.isUnlocked) 6.dp else 2.dp
+        ),
+        border = if (badge.isUnlocked) {
+            BorderStroke(1.dp, badge.color.copy(alpha = 0.3f))
+        } else {
+            BorderStroke(1.dp, Color.Gray.copy(alpha = 0.2f))
+        }
     ) {
         Column(
             modifier = Modifier
@@ -482,18 +604,82 @@ fun BadgeCard(badge: Badge) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Text(
-                text = badge.icon,
-                fontSize = 24.sp,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (badge.isUnlocked) {
+                            badge.color.copy(alpha = 0.2f)
+                        } else {
+                            Color.Gray.copy(alpha = 0.1f)
+                        }
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                if (badge.isUnlocked) {
+                    Text(
+                        text = badge.icon,
+                        fontSize = 22.sp,
+                        modifier = Modifier.padding(2.dp)
+                    )
+                } else {
+                    Text(
+                        text = "🔒",
+                        fontSize = 18.sp,
+                        modifier = Modifier.padding(2.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
             Text(
                 text = badge.name,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold,
+                fontSize = 9.sp,
+                fontWeight = if (badge.isUnlocked) FontWeight.Bold else FontWeight.Normal,
                 color = if (badge.isUnlocked) badge.color else Color.Gray,
-                style = TextStyle(textAlign = TextAlign.Center)
+                style = TextStyle(textAlign = TextAlign.Center),
+                maxLines = 2
             )
+
+            if (!badge.isUnlocked) {
+                Text(
+                    text = "LOCKED",
+                    fontSize = 7.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color.Gray.copy(alpha = 0.6f),
+                    style = TextStyle(textAlign = TextAlign.Center),
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            } else {
+                Text(
+                    text = "UNLOCKED",
+                    fontSize = 7.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color.Gray.copy(alpha = 0.8f),
+                    style = TextStyle(textAlign = TextAlign.Center),
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            }
         }
+    }
+}
+
+private fun saveImageToAppStorage(context: Context, sourceUri: Uri): String? {
+    return try {
+        val fileName = "profile_${System.currentTimeMillis()}.jpg"
+        val permanentFile = File(context.filesDir, fileName)
+
+        context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
+            FileOutputStream(permanentFile).use { outputStream ->
+                inputStream.copyTo(outputStream)
+            }
+        }
+
+        permanentFile.absolutePath
+    } catch (e: Exception) {
+        e.printStackTrace()
+        null
     }
 }

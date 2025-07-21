@@ -48,7 +48,6 @@ enum class NotificationType {
     SYSTEM,        // Aggiornamenti sistema
     SECURITY,      // Login, sicurezza
     REMINDER,      // Promemoria daily login
-    SOCIAL,        // Interazioni social (futuro)
     MARKETING      // Nuove funzionalità
 }
 
@@ -72,7 +71,6 @@ fun NotificationScreen(navController: NavHostController) {
     val currentUser = auth.currentUser
 
     if (currentUser == null) {
-        // Se l'utente non è loggato, mostra un messaggio
         AppTheme {
             Column(
                 modifier = Modifier.fillMaxSize(),
@@ -88,7 +86,6 @@ fun NotificationScreen(navController: NavHostController) {
         return
     }
 
-    // Inizializza database e repository
     val database = remember { AppDatabase.getDatabase(context) }
     val repository = remember {
         Repository(
@@ -99,20 +96,11 @@ fun NotificationScreen(navController: NavHostController) {
         )
     }
 
-    // Crea ViewModel
     val viewModel: NotificationViewModel = viewModel(
         factory = NotificationViewModelFactory(repository)
     )
 
-    // Crea alcune notifiche di test se non esistono
-    LaunchedEffect(Unit) {
-        delay(1000) // Aspetta un secondo per assicurarsi che il database sia pronto
-        try {
-            viewModel.createTestNotifications()
-        } catch (e: Exception) {
-            // Ignora errori nella creazione di notifiche di test
-        }
-    }
+
 
     AppTheme {
         Column(
@@ -164,7 +152,6 @@ fun NotificationsContent(
     ) {
         when {
             isLoading -> {
-                // Loading state
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -189,7 +176,6 @@ fun NotificationsContent(
             }
 
             error != null -> {
-                // Error state
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -234,13 +220,11 @@ fun NotificationsContent(
             }
 
             else -> {
-                // Content state
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp)
                 ) {
-                    // Header con statistiche e azioni
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -269,7 +253,6 @@ fun NotificationsContent(
                         }
 
                         Row {
-                            // Pulsante Filtro
                             IconButton(
                                 onClick = { showFilterDialog = true }
                             ) {
@@ -280,7 +263,6 @@ fun NotificationsContent(
                                 )
                             }
 
-                            // Pulsante Mark All Read
                             if (unreadCount > 0) {
                                 IconButton(
                                     onClick = {
@@ -295,23 +277,7 @@ fun NotificationsContent(
                                 }
                             }
 
-                            // Pulsante per aggiungere notifica di test
-                            IconButton(
-                                onClick = {
-                                    viewModel.createNotification(
-                                        type = NotificationType.SYSTEM,
-                                        title = "Test Notification",
-                                        message = "This is a test notification created at ${SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())}",
-                                        actionText = "Test Action"
-                                    )
-                                }
-                            ) {
-                                Icon(
-                                    Icons.Default.Add,
-                                    contentDescription = "Add Test Notification",
-                                    tint = onPrimaryLight
-                                )
-                            }
+
                         }
                     }
 
@@ -319,7 +285,6 @@ fun NotificationsContent(
 
                     // Lista notifiche
                     if (filteredNotifications.isEmpty()) {
-                        // Empty state
                         Box(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
@@ -343,15 +308,7 @@ fun NotificationsContent(
                                     )
                                 )
                                 Spacer(modifier = Modifier.height(16.dp))
-                                Button(
-                                    onClick = { viewModel.createTestNotifications() },
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = primaryContainerLightMediumContrast,
-                                        contentColor = onPrimaryLightMediumContrast
-                                    )
-                                ) {
-                                    Text("Create Test Notifications")
-                                }
+
                             }
                         }
                     } else {
@@ -369,7 +326,6 @@ fun NotificationsContent(
                                         viewModel.deleteNotification(notificationId)
                                     },
                                     onAction = { notificationId ->
-                                        // Gestisci azione specifica
                                         val notification = notifications.find { it.id == notificationId }
                                         when (notification?.type) {
                                             NotificationType.ACHIEVEMENT -> {
@@ -392,7 +348,6 @@ fun NotificationsContent(
         }
     }
 
-    // Dialog filtro
     if (showFilterDialog) {
         FilterDialog(
             currentFilter = selectedFilter,
@@ -405,7 +360,6 @@ fun NotificationsContent(
     }
 }
 
-// Resto del codice rimane uguale...
 @Composable
 fun NotificationCard(
     notification: AppNotification,
@@ -429,7 +383,6 @@ fun NotificationCard(
                 .padding(16.dp),
             verticalAlignment = Alignment.Top
         ) {
-            // Icona notifica
             Box(
                 modifier = Modifier
                     .size(40.dp)
@@ -447,7 +400,6 @@ fun NotificationCard(
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            // Contenuto notifica
             Column(
                 modifier = Modifier.weight(1f)
             ) {
@@ -487,7 +439,6 @@ fun NotificationCard(
                     )
                 )
 
-                // Action button se presente
                 notification.actionText?.let { actionText ->
                     Spacer(modifier = Modifier.height(8.dp))
                     Button(
@@ -506,7 +457,6 @@ fun NotificationCard(
                 }
             }
 
-            // Menu azioni
             Column {
                 if (!notification.isRead) {
                     IconButton(
@@ -593,14 +543,12 @@ fun FilterOption(
     }
 }
 
-// Helper functions
 fun getNotificationColor(type: NotificationType): Color {
     return when (type) {
         NotificationType.ACHIEVEMENT -> Color(0xFF4CAF50)
         NotificationType.SYSTEM -> Color(0xFF2196F3)
         NotificationType.SECURITY -> Color(0xFFFF5722)
         NotificationType.REMINDER -> Color(0xFFFF9800)
-        NotificationType.SOCIAL -> Color(0xFF9C27B0)
         NotificationType.MARKETING -> Color(0xFF00BCD4)
     }
 }
@@ -611,7 +559,6 @@ fun getNotificationIcon(type: NotificationType): ImageVector {
         NotificationType.SYSTEM -> Icons.Default.Info
         NotificationType.SECURITY -> Icons.Default.Warning
         NotificationType.REMINDER -> Icons.Default.Notifications
-        NotificationType.SOCIAL -> Icons.Default.Person
         NotificationType.MARKETING -> Icons.Default.ShoppingCart
     }
 }
@@ -622,7 +569,6 @@ fun getTypeDisplayName(type: NotificationType): String {
         NotificationType.SYSTEM -> "System"
         NotificationType.SECURITY -> "Security"
         NotificationType.REMINDER -> "Reminders"
-        NotificationType.SOCIAL -> "Social"
         NotificationType.MARKETING -> "Updates"
     }
 }

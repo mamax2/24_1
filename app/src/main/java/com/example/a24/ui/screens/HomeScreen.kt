@@ -42,7 +42,6 @@ import java.util.*
 fun HomeScreen(navController: NavHostController) {
     val context = LocalContext.current
 
-    // Inizializza ViewModel con Repository
     val database = AppDatabase.getDatabase(context)
     val repository = Repository(
         database.userDao(),
@@ -100,22 +99,19 @@ fun HomeContent(
                 .padding(16.dp)
         ) {
 
-            // Header con statistiche
             StatsSection(uiState = uiState)
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Sezione azioni rapide
             QuickActionsSection(viewModel = viewModel)
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Lista attività - con weight per occupare spazio rimanente
             if (uiState.isLoading) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f), // ← AGGIUNTO WEIGHT
+                        .weight(1f),
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator()
@@ -124,7 +120,7 @@ fun HomeContent(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f) // ← AGGIUNTO WEIGHT
+                        .weight(1f)
                 ) {
                     ActivitiesSection(
                         activities = uiState.activities,
@@ -160,7 +156,6 @@ fun StatsSection(uiState: HomeUiState) {
         )
     }
 
-    // Barra di progresso
     Spacer(modifier = Modifier.height(8.dp))
     LinearProgressIndicator(
         progress = { uiState.todayProgress },
@@ -168,7 +163,7 @@ fun StatsSection(uiState: HomeUiState) {
             .fillMaxWidth()
             .height(8.dp)
             .clip(RoundedCornerShape(4.dp)),
-        color = Color(0xFF4CAF50),
+        color = Color(0xFFFF0000),
         trackColor = Color.Gray.copy(alpha = 0.3f)
     )
 }
@@ -270,8 +265,8 @@ fun ActivitiesSection(
     } else {
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.fillMaxSize(), // ← CAMBIATO DA fillMaxHeight() A fillMaxSize()
-            contentPadding = PaddingValues(bottom = 16.dp) // ← AGGIUNTO PADDING BOTTOM
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 16.dp)
         ) {
             items(activities) { activity ->
                 ActivityCard(
@@ -304,7 +299,7 @@ fun ActivityCard(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Contenuto attività
+
             Column(
                 modifier = Modifier.weight(1f)
             ) {
@@ -360,7 +355,6 @@ fun ActivityCard(
                 }
             }
 
-            // Pulsante azione
             if (activity.isCompleted) {
                 Icon(
                     Icons.Default.CheckCircle,

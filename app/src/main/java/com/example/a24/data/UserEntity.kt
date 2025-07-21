@@ -29,7 +29,7 @@ data class UserEntity(
     val level: Int = 1,
 
     @ColumnInfo(name = "badges")
-    val badges: String = "", // JSON string: ["badge1", "badge2"]
+    val badges: String = "",
 
     @ColumnInfo(name = "created_at")
     val createdAt: Long = System.currentTimeMillis(),

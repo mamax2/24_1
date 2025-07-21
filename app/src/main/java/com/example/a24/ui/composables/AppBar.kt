@@ -52,7 +52,7 @@ fun AppBar(
     val auth = FirebaseAuth.getInstance()
     val currentUserId = auth.currentUser?.uid
 
-    // Inizializza repository per ottenere il conteggio delle notifiche non lette
+    // inizializza la repository per ottenere il conteggio delle notifiche non lette
     val database = remember { AppDatabase.getDatabase(context) }
     val repository = remember {
         Repository(
@@ -63,7 +63,7 @@ fun AppBar(
         )
     }
 
-    // Osserva il conteggio delle notifiche non lette solo se l'utente è loggato
+    // conteggio notifiche non lette
     val unreadCount by if (currentUserId != null) {
         repository.getUnreadCount(currentUserId)
             .catch { emit(0) } // In caso di errore, mostra 0
@@ -100,9 +100,7 @@ fun AppBar(
             }
         },
         actions = {
-            // Mostra actions SOLO se NON sei in login o signup
             if (currentRoute != null && currentRoute !in listOf("login", "signup")) {
-                // Notification button con badge
                 Box {
                     IconButton(onClick = {
                         navController?.navigate("notifications")
@@ -113,7 +111,7 @@ fun AppBar(
                         )
                     }
 
-                    // Badge per notifiche non lette
+                    // Badge per le notifiche non lette
                     if (unreadCount > 0) {
                         NotificationBadge(
                             count = unreadCount,
@@ -122,7 +120,6 @@ fun AppBar(
                     }
                 }
 
-                // Profile button
                 IconButton(onClick = {
                     navController?.navigate("profile")
                 }) {

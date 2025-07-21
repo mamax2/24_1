@@ -23,12 +23,8 @@ fun AppNavigation() {
         composable("login") { LoginScreen(navController) }
         composable("home") { HomeScreen(navController) }
         composable("signup") { SignupScreen(navController) }
-        composable("profile") {
-
-            ProfileScreen(navController) }
-        composable("notifications") {
-            NotificationScreen(navController)
-        }
+        composable("profile") { ProfileScreen(navController) }
+        composable("notifications") { NotificationScreen(navController) }
     }
 }
 

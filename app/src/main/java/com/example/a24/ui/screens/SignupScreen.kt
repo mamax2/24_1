@@ -42,7 +42,7 @@ import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 import com.example.a24.data.AppDatabase
 import com.example.a24.data.Repository
-import com.example.a24.managers.NotificationManager
+import com.example.a24.ui.managers.NotificationManager
 import com.google.firebase.auth.userProfileChangeRequest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -76,7 +76,6 @@ fun Signup(navController: NavHostController) {
     val context = LocalContext.current
     val auth = FirebaseAuth.getInstance()
 
-    // Inizializza repository e notification manager
     val database = remember { AppDatabase.getDatabase(context) }
     val repository = remember {
         Repository(
@@ -103,9 +102,6 @@ fun Signup(navController: NavHostController) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // [Mantieni tutti i campi esistenti per nome, email, password, conferma password...]
-
-            // Titolo "Name"
             Text(
                 text = "Name",
                 style = TextStyle(fontFamily = displayFontFamily, fontSize = 18.sp, color = onPrimaryLight),
@@ -123,7 +119,6 @@ fun Signup(navController: NavHostController) {
                     .padding(vertical = 8.dp)
             )
 
-            // [Altri campi...]
             Text(
                 text = "Email",
                 style = TextStyle(fontFamily = displayFontFamily, fontSize = 18.sp, color = onPrimaryLight),
@@ -177,7 +172,6 @@ fun Signup(navController: NavHostController) {
                     .padding(vertical = 8.dp)
             )
 
-            // Pulsante "Sign Up" AGGIORNATO
             Button(
                 onClick = {
                     when {
@@ -262,7 +256,6 @@ fun Signup(navController: NavHostController) {
                 }
             }
 
-            // Pulsante "Already have an account? Login"
             Button(
                 onClick = {
                     navController.navigate("login") {

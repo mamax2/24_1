@@ -1,11 +1,10 @@
-package com.example.a24.managers
+package com.example.a24.ui.managers
 
 import com.example.a24.data.Repository
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import java.util.*
 
 class NotificationManager(
     private val repository: Repository
@@ -173,15 +172,6 @@ class NotificationManager(
                 // Crea notifiche iniziali
                 sendWelcomeNotification(userId)
 
-                // Notifica informativa sul sistema
-                repository.createNotification(
-                    userId = userId,
-                    type = "SYSTEM",
-                    title = "💡 Getting Started",
-                    message = "Tap on activities to complete them, earn points, and unlock badges!",
-                    actionText = "Learn More"
-                )
-
                 // Notifica sui badge
                 repository.createNotification(
                     userId = userId,
@@ -192,31 +182,9 @@ class NotificationManager(
                 )
 
             } catch (e: Exception) {
-                // Log error se necessario
             }
         }
     }
 
-    // Metodo per creare notifiche di test (da usare solo per sviluppo)
-    fun createTestNotifications(userId: String) {
-        scope.launch {
-            val testNotifications = listOf(
-                Triple("ACHIEVEMENT", "🎯 First Goal Complete!", "You've completed your first activity! Keep up the great work."),
-                Triple("SYSTEM", "📊 Weekly Report Ready", "Your weekly productivity report is now available."),
-                Triple("SECURITY", "🔒 Password Updated", "Your password was successfully updated."),
-                Triple("REMINDER", "⏰ Daily Goal Reminder", "You have 2 activities left to complete today."),
-                Triple("MARKETING", "🎨 New Themes Available", "Customize your app with our new dark and light themes!")
-            )
 
-            testNotifications.forEachIndexed { index, (type, title, message) ->
-                repository.createNotification(
-                    userId = userId,
-                    type = type,
-                    title = title,
-                    message = message,
-                    actionText = if (index % 2 == 0) "View Details" else null
-                )
-            }
-        }
-    }
 }
