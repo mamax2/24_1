@@ -46,16 +46,27 @@ class Repository(
         title: String,
         description: String = "",
         category: String = "today",
-        priority: Int = 1
+        priority: Int = 1,
+        address: String? = null,
+        latitude: Double? = null,
+        longitude: Double? = null
     ): String {
         val activityId = java.util.UUID.randomUUID().toString()
         val activity = ActivityEntity(
             id = activityId,
             userId = userId,
             title = title,
-            description = description,
+            description = description ?: "",
+            isCompleted = false,
             category = category,
             priority = priority,
+            points = 10,
+            createdAt = System.currentTimeMillis(),
+            completedAt = null,
+            dueDate = null,
+            address = address,
+            latitude = latitude,
+            longitude = longitude
         )
         activityDao.insertActivity(activity)
         return activityId
@@ -65,8 +76,12 @@ class Repository(
         return activityDao.getTodayActivities(userId)
     }
 
+    suspend fun getActivityById(activityId: String): ActivityEntity? {
+        return activityDao.getActivityById(activityId)
+    }
+
     suspend fun completeActivity(activityId: String, userId: String) {
-        val activity = activityDao.getPendingActivities(userId).find { it.id == activityId }
+        val activity = activityDao.getActivityById(activityId)
         activity?.let {
             activityDao.updateActivityStatus(activityId, true, System.currentTimeMillis())
 
@@ -101,6 +116,23 @@ class Repository(
         val completed = activityDao.getCompletedTodayCount(userId)
         val total = activityDao.getTotalTodayCount(userId)
         return if (total > 0) completed.toFloat() / total.toFloat() else 0f
+    }
+
+    suspend fun updateActivityLocation(
+        activityId: String,
+        address: String?,
+        latitude: Double?,
+        longitude: Double?
+    ) {
+        val activity = activityDao.getActivityById(activityId)
+        activity?.let {
+            val updatedActivity = it.copy(
+                address = address,
+                latitude = latitude,
+                longitude = longitude
+            )
+            activityDao.updateActivity(updatedActivity)
+        }
     }
 
     //gamification
@@ -225,10 +257,6 @@ class Repository(
     }
 
     suspend fun createInitialNotifications(userId: String) {
-        // Controlla se l'utente ha già notifiche
-        val existingNotifications = notificationDao.getAllNotifications(userId)
-
-        // Se non ha notifiche, crea quelle iniziali
         val now = System.currentTimeMillis()
         val initialNotifications = listOf(
             NotificationEntity(
@@ -270,9 +298,7 @@ class Repository(
         notificationDao.deleteExpiredNotifications(System.currentTimeMillis())
     }
 
-
     suspend fun updateUserLastActive(userId: String) {
         userDao.updateLastActive(userId, System.currentTimeMillis())
     }
-
 }

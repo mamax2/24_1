@@ -24,26 +24,35 @@ data class ActivityEntity(
     val title: String,
 
     @ColumnInfo(name = "description")
-    val description: String = "",
+    val description: String,
 
     @ColumnInfo(name = "is_completed")
-    val isCompleted: Boolean = false,
+    val isCompleted: Boolean,
 
     @ColumnInfo(name = "category")
-    val category: String = "today",
+    val category: String,
 
     @ColumnInfo(name = "priority")
-    val priority: Int = 1,
+    val priority: Int,
 
     @ColumnInfo(name = "points")
-    val points: Int = 10,
+    val points: Int,
 
     @ColumnInfo(name = "created_at")
-    val createdAt: Long = System.currentTimeMillis(),
+    val createdAt: Long,
 
     @ColumnInfo(name = "completed_at")
-    val completedAt: Long? = null,
+    val completedAt: Long?,
 
     @ColumnInfo(name = "due_date")
-    val dueDate: Long? = null
+    val dueDate: Long?,
+
+    @ColumnInfo(name = "address")
+    val address: String?,
+
+    @ColumnInfo(name = "latitude")
+    val latitude: Double?,
+
+    @ColumnInfo(name = "longitude")
+    val longitude: Double?
 )

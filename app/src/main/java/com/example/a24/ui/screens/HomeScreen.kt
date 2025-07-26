@@ -1,5 +1,8 @@
 package com.example.a24.ui.screens
 
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -27,6 +30,7 @@ import com.example.a24.data.AppDatabase
 import com.example.a24.data.Repository
 import com.example.a24.ui.composables.AppBar
 import com.example.a24.ui.composables.SectionHeader
+import com.example.a24.ui.managers.LocationManager
 import com.example.a24.ui.theme.AppTheme
 import com.example.a24.ui.theme.displayFontFamily
 import com.example.a24.ui.theme.onPrimaryLight
@@ -35,8 +39,6 @@ import com.example.a24.ui.theme.primaryContainerLightMediumContrast
 import com.example.a24.ui.theme.primaryLight
 import com.example.a24.ui.viewmodel.HomeViewModel
 import com.example.a24.ui.viewmodel.HomeUiState
-import java.text.SimpleDateFormat
-import java.util.*
 
 @Composable
 fun HomeScreen(navController: NavHostController) {
@@ -52,6 +54,10 @@ fun HomeScreen(navController: NavHostController) {
 
     val viewModel: HomeViewModel = viewModel {
         HomeViewModel(repository)
+    }
+
+    LaunchedEffect(navController.currentBackStackEntry) {
+        viewModel.refreshData()
     }
 
     AppTheme {
@@ -76,10 +82,8 @@ fun HomeContent(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
-    // Gestione errori
     uiState.errorMessage?.let { error ->
         LaunchedEffect(error) {
-            // Mostra errore in un toast
             android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_LONG).show()
             viewModel.clearErrorMessage()
         }
@@ -125,6 +129,9 @@ fun HomeContent(
                     ActivitiesSection(
                         activities = uiState.activities,
                         onActivityComplete = viewModel::completeActivity,
+                        onActivityClick = { activityId ->
+                            navController.navigate("activity_detail/$activityId")
+                        },
                         onRefresh = viewModel::refreshData
                     )
                 }
@@ -242,12 +249,11 @@ fun QuickActionsSection(viewModel: HomeViewModel) {
         }
     }
 
-    // Dialog per aggiungere attività
     if (showAddDialog) {
         AddActivityDialog(
             onDismiss = { showAddDialog = false },
-            onAdd = { title, description ->
-                viewModel.addActivity(title, description)
+            onAdd = { title, description, address ->
+                viewModel.addActivity(title, description, address)
                 showAddDialog = false
             }
         )
@@ -255,9 +261,136 @@ fun QuickActionsSection(viewModel: HomeViewModel) {
 }
 
 @Composable
+fun AddActivityDialog(
+    onDismiss: () -> Unit,
+    onAdd: (String, String, String?) -> Unit
+) {
+    var title by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
+    var address by remember { mutableStateOf("") }
+    var useCurrentLocation by remember { mutableStateOf(false) }
+    var isLoadingLocation by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+    val locationManager = remember { LocationManager(context) }
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val granted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+
+        if (granted && useCurrentLocation) {
+            isLoadingLocation = true
+        }
+    }
+
+    LaunchedEffect(useCurrentLocation, isLoadingLocation) {
+        if (useCurrentLocation && isLoadingLocation && locationManager.hasLocationPermission()) {
+            val location = locationManager.getCurrentLocation()
+            isLoadingLocation = false
+            location?.address?.let { addr ->
+                address = addr
+            }
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add New Activity") },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = { Text("Title") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Description (optional)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 3
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = address,
+                    onValueChange = { address = it },
+                    label = { Text("Address (optional)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 2,
+                    enabled = !isLoadingLocation
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Checkbox(
+                        checked = useCurrentLocation,
+                        onCheckedChange = { checked ->
+                            useCurrentLocation = checked
+                            if (checked) {
+                                if (locationManager.hasLocationPermission()) {
+                                    isLoadingLocation = true
+                                } else {
+                                    locationPermissionLauncher.launch(
+                                        arrayOf(
+                                            Manifest.permission.ACCESS_FINE_LOCATION,
+                                            Manifest.permission.ACCESS_COARSE_LOCATION
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                    )
+                    Text("Use current location")
+
+                    if (isLoadingLocation) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    if (title.isNotBlank()) {
+                        onAdd(
+                            title.trim(),
+                            description.trim(),
+                            if (address.isNotBlank()) address.trim() else null
+                        )
+                    }
+                },
+                enabled = title.isNotBlank()
+            ) {
+                Text("Add")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
 fun ActivitiesSection(
     activities: List<ActivityEntity>,
     onActivityComplete: (String) -> Unit,
+    onActivityClick: (String) -> Unit,
     onRefresh: () -> Unit
 ) {
     if (activities.isEmpty()) {
@@ -271,7 +404,8 @@ fun ActivitiesSection(
             items(activities) { activity ->
                 ActivityCard(
                     activity = activity,
-                    onComplete = { onActivityComplete(activity.id) }
+                    onComplete = { onActivityComplete(activity.id) },
+                    onItemClick = onActivityClick
                 )
             }
         }
@@ -281,10 +415,13 @@ fun ActivitiesSection(
 @Composable
 fun ActivityCard(
     activity: ActivityEntity,
-    onComplete: () -> Unit
+    onComplete: () -> Unit,
+    onItemClick: (String) -> Unit = {}
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onItemClick(activity.id) },
         colors = CardDefaults.cardColors(
             containerColor = if (activity.isCompleted)
                 Color.White.copy(alpha = 0.7f)
@@ -327,6 +464,30 @@ fun ActivityCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+                }
+
+                if (activity.address != null) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.LocationOn,
+                            contentDescription = "Location",
+                            modifier = Modifier.size(12.dp),
+                            tint = Color(0xFF2196F3)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = activity.address,
+                            style = TextStyle(
+                                fontSize = 12.sp,
+                                color = Color(0xFF2196F3)
+                            ),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -414,54 +575,4 @@ fun EmptyState(onRefresh: () -> Unit) {
             }
         }
     }
-}
-
-@Composable
-fun AddActivityDialog(
-    onDismiss: () -> Unit,
-    onAdd: (String, String) -> Unit
-) {
-    var title by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Add New Activity") },
-        text = {
-            Column {
-                OutlinedTextField(
-                    value = title,
-                    onValueChange = { title = it },
-                    label = { Text("Title") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = description,
-                    onValueChange = { description = it },
-                    label = { Text("Description (optional)") },
-                    modifier = Modifier.fillMaxWidth(),
-                    maxLines = 3
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    if (title.isNotBlank()) {
-                        onAdd(title.trim(), description.trim())
-                    }
-                },
-                enabled = title.isNotBlank()
-            ) {
-                Text("Add")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        }
-    )
 }

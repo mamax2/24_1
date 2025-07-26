@@ -23,6 +23,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+
+
         initializeDatabase()
 
         enableEdgeToEdge()
@@ -31,7 +33,6 @@ class MainActivity : ComponentActivity() {
                 Scaffold(
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    // Inizializza utente se è loggato
                     LaunchedEffect(Unit) {
                         FirebaseAuth.getInstance().currentUser?.let { user ->
                             initializeUserIfNeeded(user.uid, user.displayName ?: "User", user.email ?: "")
@@ -43,6 +44,7 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
 
     private fun initializeDatabase() {
         val database = AppDatabase.getDatabase(this)

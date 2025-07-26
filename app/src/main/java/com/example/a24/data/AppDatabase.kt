@@ -12,7 +12,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         NotificationEntity::class,
         UserBadgeEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -30,8 +30,17 @@ abstract class AppDatabase : RoomDatabase() {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("ALTER TABLE users ADD COLUMN total_points INTEGER NOT NULL DEFAULT 0")
                 database.execSQL("ALTER TABLE users ADD COLUMN level INTEGER NOT NULL DEFAULT 1")
-
                 database.execSQL("ALTER TABLE activities ADD COLUMN points INTEGER NOT NULL DEFAULT 10")
+            }
+        }
+
+        // Nuova migrazione per aggiungere campi di localizzazione
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Aggiungi le nuove colonne con valori di default NULL
+                database.execSQL("ALTER TABLE activities ADD COLUMN address TEXT DEFAULT NULL")
+                database.execSQL("ALTER TABLE activities ADD COLUMN latitude REAL DEFAULT NULL")
+                database.execSQL("ALTER TABLE activities ADD COLUMN longitude REAL DEFAULT NULL")
             }
         }
 
@@ -40,9 +49,10 @@ abstract class AppDatabase : RoomDatabase() {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "app_database"
+                    "app_database_v3"
                 )
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance
                 instance

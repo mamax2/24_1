@@ -34,7 +34,6 @@ class HomeViewModel(
         loadHomeData()
     }
 
-
     private fun loadHomeData() {
         val userId = auth.currentUser?.uid
         if (userId == null) {
@@ -85,13 +84,12 @@ class HomeViewModel(
         }
     }
 
-
     fun addActivity(
         title: String,
         description: String = "",
+        address: String? = null,
         category: String = "today",
-        priority: Int = 1,
-        points: Int = 10
+        priority: Int = 1
     ) {
         val userId = auth.currentUser?.uid ?: return
 
@@ -106,6 +104,7 @@ class HomeViewModel(
                     description = description,
                     category = category,
                     priority = priority,
+                    address = address
                 )
 
                 // Debug
@@ -126,7 +125,6 @@ class HomeViewModel(
         }
     }
 
-
     fun completeActivity(activityId: String) {
         val userId = auth.currentUser?.uid ?: return
 
@@ -145,17 +143,13 @@ class HomeViewModel(
         }
     }
 
-
     fun refreshData() {
         loadHomeData()
     }
 
-
-
     fun clearErrorMessage() {
         _uiState.value = _uiState.value.copy(errorMessage = null)
     }
-
 
     fun addSampleActivities() {
         val userId = auth.currentUser?.uid ?: return
@@ -163,19 +157,20 @@ class HomeViewModel(
         viewModelScope.launch {
             try {
                 val sampleActivities = listOf(
-                    Triple("Morning Exercise", "30 min workout", 15),
-                    Triple("Read a Book", "Read for 1 hour", 10),
-                    Triple("Healthy Meal", "Prepare nutritious lunch", 12),
-                    Triple("Learn Something New", "Study for 45 minutes", 20)
+                    Triple("Morning Exercise", "30 min workout at the gym", "Via Roma 123, Milan"),
+                    Triple("Read a Book", "Read for 1 hour at the library", "Biblioteca Centrale, Bologna"),
+                    Triple("Healthy Meal", "Prepare nutritious lunch at home", null),
+                    Triple("Learn Something New", "Study for 45 minutes", "University Campus")
                 )
 
-                sampleActivities.forEach { (title, description, points) ->
+                sampleActivities.forEach { (title, description, address) ->
                     repository.addActivity(
                         userId = userId,
                         title = title,
                         description = description,
                         category = "today",
                         priority = 1,
+                        address = address
                     )
                 }
 

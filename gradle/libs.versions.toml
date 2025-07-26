@@ -18,6 +18,8 @@ activityCompose = "1.10.1"
 composeBom = "2024.04.01"
 navigationCompose = "2.8.9"
 navigationComposeVersion = "2.7.0"
+playServicesLocation = "21.3.0"
+playServicesMaps = "19.2.0"
 room = "2.7.2"
 uiTextGoogleFonts = "1.7.8"
 firebaseAuthKtx = "23.2.1"
@@ -68,6 +70,8 @@ androidx-ui-text-google-fonts = { group = "androidx.compose.ui", name = "ui-text
 
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "kotlinxCoroutinesAndroid" }
 com-google-firebase-firebase-storage-ktx = { group = "com.google.firebase", name = "firebase-storage-ktx", version.ref = "firebaseStorageKtx" }
+play-services-location = { module = "com.google.android.gms:play-services-location", version.ref = "playServicesLocation" }
+play-services-maps = { module = "com.google.android.gms:play-services-maps", version.ref = "playServicesMaps" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
