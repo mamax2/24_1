@@ -37,6 +37,7 @@ import com.example.a24.ui.theme.onPrimaryLight
 import com.example.a24.ui.theme.onPrimaryLightMediumContrast
 import com.example.a24.ui.theme.primaryContainerLightMediumContrast
 import com.example.a24.ui.theme.primaryLight
+import com.example.a24.ui.theme.tertiaryLight
 import com.example.a24.ui.viewmodel.HomeViewModel
 import com.example.a24.ui.viewmodel.HomeUiState
 
@@ -149,12 +150,12 @@ fun StatsSection(uiState: HomeUiState) {
         StatCard(
             title = "Completed",
             value = uiState.completedCount.toString(),
-            color = Color(0xFF4CAF50)
+            color = onPrimaryLight
         )
         StatCard(
             title = "Remaining",
             value = (uiState.totalCount - uiState.completedCount).toString(),
-            color = Color(0xFFFF9800)
+            color = onPrimaryLight
         )
         StatCard(
             title = "Daily Progress",
@@ -170,7 +171,7 @@ fun StatsSection(uiState: HomeUiState) {
             .fillMaxWidth()
             .height(8.dp)
             .clip(RoundedCornerShape(4.dp)),
-        color = Color(0xFFFF0000),
+        color = Color.White,
         trackColor = Color.Gray.copy(alpha = 0.3f)
     )
 }
@@ -233,9 +234,9 @@ fun QuickActionsSection(viewModel: HomeViewModel) {
             Text("Add Activity")
         }
 
-        Spacer(modifier = Modifier.width(8.dp))
+        //Spacer(modifier = Modifier.width(8.dp))
 
-        Button(
+       /* Button(
             onClick = { viewModel.addSampleActivities() },
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color(0xFF2196F3),
@@ -246,7 +247,7 @@ fun QuickActionsSection(viewModel: HomeViewModel) {
             Icon(Icons.Default.Refresh, contentDescription = "Add Sample")
             Spacer(modifier = Modifier.width(8.dp))
             Text("Add Sample")
-        }
+        }*/
     }
 
     if (showAddDialog) {
@@ -475,14 +476,14 @@ fun ActivityCard(
                             Icons.Default.LocationOn,
                             contentDescription = "Location",
                             modifier = Modifier.size(12.dp),
-                            tint = Color(0xFF2196F3)
+                            tint = primaryLight
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = activity.address,
                             style = TextStyle(
                                 fontSize = 12.sp,
-                                color = Color(0xFF2196F3)
+                                color = primaryLight
                             ),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis

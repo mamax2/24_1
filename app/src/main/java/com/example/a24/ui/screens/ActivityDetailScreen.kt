@@ -31,8 +31,10 @@ import com.example.a24.ui.managers.LocationManager
 import com.example.a24.ui.theme.AppTheme
 import com.example.a24.ui.theme.displayFontFamily
 import com.example.a24.ui.theme.onPrimaryLight
+import com.example.a24.ui.theme.primaryContainerLight
 import com.example.a24.ui.theme.primaryContainerLightMediumContrast
 import com.example.a24.ui.theme.primaryLight
+import com.example.a24.ui.theme.tertiaryLight
 import com.example.a24.ui.viewmodel.ActivityDetailViewModel
 import com.example.a24.ui.viewmodel.ActivityDetailViewModelFactory
 import java.text.SimpleDateFormat
@@ -345,7 +347,7 @@ private fun LocationCard(
                         Icons.Default.LocationOn,
                         contentDescription = "Address",
                         modifier = Modifier.size(20.dp),
-                        tint = Color(0xFF2196F3)
+                        tint = primaryLight
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
@@ -366,7 +368,7 @@ private fun LocationCard(
                     Icons.Default.LocationOn,
                     contentDescription = "Current Location",
                     modifier = Modifier.size(20.dp),
-                    tint = Color(0xFF4CAF50)
+                    tint = primaryContainerLightMediumContrast
                 )
                 Spacer(modifier = Modifier.width(8.dp))
 
@@ -389,8 +391,8 @@ private fun LocationCard(
                             Text(
                                 text = "📍 Distance: ${formatDistance(distanceToActivity)}",
                                 style = TextStyle(
-                                    fontSize = 12.sp,
-                                    color = Color(0xFF4CAF50),
+                                    fontSize = 14.sp,
+                                    color = primaryContainerLightMediumContrast,
                                     fontWeight = FontWeight.Medium
                                 )
                             )
@@ -418,7 +420,7 @@ private fun LocationCard(
                         },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF4285F4)
+                            containerColor = primaryLight
                         )
                     ) {
                         Icon(Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -468,7 +470,7 @@ private fun LocationCard(
                         },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF4CAF50)
+                            containerColor = tertiaryLight
                         )
                     ) {
                         Icon(Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(16.dp))
