@@ -45,10 +45,9 @@ import java.util.*
 // Enum per i tipi di notifica
 enum class NotificationType {
     ACHIEVEMENT,    // Badge sbloccati
-    SYSTEM,        // Aggiornamenti sistema
+    APP,        // Aggiornamenti sistema
     SECURITY,      // Login, sicurezza
     REMINDER,      // Promemoria daily login
-    MARKETING      // Nuove funzionalità
 }
 
 // Data class per le notifiche
@@ -546,30 +545,27 @@ fun FilterOption(
 fun getNotificationColor(type: NotificationType): Color {
     return when (type) {
         NotificationType.ACHIEVEMENT -> Color(0xFF4CAF50)
-        NotificationType.SYSTEM -> Color(0xFF2196F3)
+        NotificationType.APP -> Color(0xFF2196F3)
         NotificationType.SECURITY -> Color(0xFFFF5722)
         NotificationType.REMINDER -> Color(0xFFFF9800)
-        NotificationType.MARKETING -> Color(0xFF00BCD4)
     }
 }
 
 fun getNotificationIcon(type: NotificationType): ImageVector {
     return when (type) {
         NotificationType.ACHIEVEMENT -> Icons.Default.Star
-        NotificationType.SYSTEM -> Icons.Default.Info
+        NotificationType.APP -> Icons.Default.Info
         NotificationType.SECURITY -> Icons.Default.Warning
         NotificationType.REMINDER -> Icons.Default.Notifications
-        NotificationType.MARKETING -> Icons.Default.ShoppingCart
     }
 }
 
 fun getTypeDisplayName(type: NotificationType): String {
     return when (type) {
         NotificationType.ACHIEVEMENT -> "Achievements"
-        NotificationType.SYSTEM -> "System"
+        NotificationType.APP -> "App"
         NotificationType.SECURITY -> "Security"
         NotificationType.REMINDER -> "Reminders"
-        NotificationType.MARKETING -> "Updates"
     }
 }
 

@@ -29,6 +29,7 @@ import com.example.a24.data.ActivityEntity
 import com.example.a24.data.AppDatabase
 import com.example.a24.data.Repository
 import com.example.a24.ui.composables.AppBar
+import com.example.a24.ui.composables.NotificationToast
 import com.example.a24.ui.composables.SectionHeader
 import com.example.a24.ui.managers.LocationManager
 import com.example.a24.ui.theme.AppTheme
@@ -57,23 +58,47 @@ fun HomeScreen(navController: NavHostController) {
         HomeViewModel(repository)
     }
 
-    LaunchedEffect(navController.currentBackStackEntry) {
-        viewModel.refreshData()
-    }
+    val showNotificationPopup by viewModel.showNotificationPopup.collectAsState()
 
     AppTheme {
-        Column(
-            modifier = Modifier.fillMaxSize()
-        ) {
-            AppBar(currentRoute = "home", navController = navController)
-            Spacer(modifier = Modifier.height(16.dp))
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                AppBar(currentRoute = "home", navController = navController)
+                Spacer(modifier = Modifier.height(16.dp))
+                SectionHeader(text = "TODAY'S ACTIVITIES")
+                HomeContent(navController = navController, viewModel = viewModel)
+            }
 
-            SectionHeader(text = "TODAY'S ACTIVITIES")
+            NotificationToast(
+                notification = showNotificationPopup,
+                onDismiss = {
+                    viewModel.dismissNotificationPopup()
+                },
+                onTap = {
+                    showNotificationPopup?.let { notification ->
+                        viewModel.markNotificationAsReadAndDismiss(notification.id)
 
-            HomeContent(navController = navController, viewModel = viewModel)
+                        // Naviga in base al tipo di notifica
+                        when (notification.type) {
+                            com.example.a24.ui.screens.NotificationType.ACHIEVEMENT -> {
+                                navController.navigate("profile")
+                            }
+                            com.example.a24.ui.screens.NotificationType.SECURITY -> {
+                                navController.navigate("profile")
+                            }
+                            else -> {
+                                navController.navigate("notifications")
+                            }
+                        }
+                    }
+                }
+            )
         }
     }
 }
+
 
 @Composable
 fun HomeContent(

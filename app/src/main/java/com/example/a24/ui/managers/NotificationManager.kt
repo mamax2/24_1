@@ -12,7 +12,6 @@ class NotificationManager(
     private val scope = CoroutineScope(Dispatchers.IO)
     private val auth = FirebaseAuth.getInstance()
 
-    // Notifica di benvenuto per nuovi utenti
     fun sendWelcomeNotification(userId: String) {
         scope.launch {
             repository.createNotification(
@@ -25,7 +24,6 @@ class NotificationManager(
         }
     }
 
-    // Notifica per nuovo badge sbloccato
     fun sendBadgeUnlockedNotification(userId: String, badgeName: String, badgeIcon: String) {
         scope.launch {
             repository.createNotification(
@@ -38,13 +36,12 @@ class NotificationManager(
         }
     }
 
-    // Notifica per streak raggiunto
     fun sendStreakNotification(userId: String, streakDays: Int) {
         val (title, message) = when {
             streakDays == 7 -> "🔥 Week Streak!" to "Amazing! You've maintained a 7-day streak!"
             streakDays == 30 -> "🔥 Month Streak!" to "Incredible! You've maintained a 30-day streak!"
             streakDays % 10 == 0 -> "🔥 ${streakDays}-Day Streak!" to "Outstanding! You've maintained a $streakDays-day streak!"
-            else -> return // Non inviare notifica per ogni giorno
+            else -> return
         }
 
         scope.launch {
@@ -58,7 +55,6 @@ class NotificationManager(
         }
     }
 
-    // Notifica per attività completata
     fun sendActivityCompletedNotification(userId: String, activityTitle: String, pointsEarned: Int) {
         scope.launch {
             repository.createNotification(
@@ -71,7 +67,6 @@ class NotificationManager(
         }
     }
 
-    // Notifica per level up
     fun sendLevelUpNotification(userId: String, newLevel: Int) {
         scope.launch {
             repository.createNotification(
@@ -84,7 +79,6 @@ class NotificationManager(
         }
     }
 
-    // Notifica di promemoria giornaliero
     fun sendDailyReminderNotification(userId: String) {
         scope.launch {
             repository.createNotification(
@@ -97,7 +91,6 @@ class NotificationManager(
         }
     }
 
-    // Notifica per nuovo login da dispositivo
     fun sendSecurityNotification(userId: String, deviceInfo: String) {
         scope.launch {
             repository.createNotification(
@@ -110,7 +103,6 @@ class NotificationManager(
         }
     }
 
-    // Notifica per aggiornamento app
     fun sendAppUpdateNotification(userId: String, version: String) {
         scope.launch {
             repository.createNotification(
@@ -123,20 +115,8 @@ class NotificationManager(
         }
     }
 
-    // Notifica per nuova funzionalità
-    fun sendFeatureNotification(userId: String, featureName: String) {
-        scope.launch {
-            repository.createNotification(
-                userId = userId,
-                type = "MARKETING",
-                title = "🚀 New Feature: $featureName",
-                message = "Check out the latest addition to 24+1! Discover new ways to boost your productivity.",
-                actionText = "Try Now"
-            )
-        }
-    }
 
-    // Notifica per completamento giornaliero al 100%
+
     fun sendPerfectDayNotification(userId: String) {
         scope.launch {
             repository.createNotification(
@@ -151,7 +131,7 @@ class NotificationManager(
 
     // Notifica per inattività (da chiamare periodicamente)
     fun sendInactivityNotification(userId: String, daysSinceLastActivity: Int) {
-        if (daysSinceLastActivity < 3) return // Non inviare se l'utente è stato attivo di recente
+        if (daysSinceLastActivity < 3) return
 
         scope.launch {
             repository.createNotification(
@@ -164,18 +144,14 @@ class NotificationManager(
         }
     }
 
-    // Metodo per inizializzare notifiche di benvenuto per nuovi utenti
     fun initializeNotificationsForNewUser(userId: String) {
         scope.launch {
-            // Verifica se l'utente ha già notifiche
             try {
-                // Crea notifiche iniziali
                 sendWelcomeNotification(userId)
 
-                // Notifica sui badge
                 repository.createNotification(
                     userId = userId,
-                    type = "MARKETING",
+                    type = "APP",
                     title = "🏆 Collect Badges",
                     message = "Complete activities and achieve milestones to unlock special badges!",
                     actionText = "View Badges"

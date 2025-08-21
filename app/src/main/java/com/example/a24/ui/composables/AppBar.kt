@@ -41,6 +41,7 @@ import com.example.a24.ui.theme.secondaryContainerLight
 import com.example.a24.ui.theme.secondaryLight
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.catch
+import androidx.compose.foundation.clickable // AGGIUNGI QUESTO IMPORT
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,7 +53,6 @@ fun AppBar(
     val auth = FirebaseAuth.getInstance()
     val currentUserId = auth.currentUser?.uid
 
-    // inizializza la repository per ottenere il conteggio delle notifiche non lette
     val database = remember { AppDatabase.getDatabase(context) }
     val repository = remember {
         Repository(
@@ -63,10 +63,9 @@ fun AppBar(
         )
     }
 
-    // conteggio notifiche non lette
     val unreadCount by if (currentUserId != null) {
         repository.getUnreadCount(currentUserId)
-            .catch { emit(0) } // In caso di errore, mostra 0
+            .catch { emit(0) }
             .collectAsState(initial = 0)
     } else {
         remember { mutableStateOf(0) }
@@ -84,7 +83,17 @@ fun AppBar(
                 "24+1",
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                style = TextStyle(fontFamily = displayFontFamily, fontSize = 42.sp)
+                style = TextStyle(fontFamily = displayFontFamily, fontSize = 42.sp),
+                modifier = Modifier
+                    .clickable {
+                        if (currentRoute != "home" && navController != null) {
+                            navController.navigate("home") {
+                                popUpTo("home") { inclusive = true }
+                                launchSingleTop = true
+                            }
+                        }
+                    }
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
             )
         },
         navigationIcon = {
@@ -111,7 +120,6 @@ fun AppBar(
                         )
                     }
 
-                    // Badge per le notifiche non lette
                     if (unreadCount > 0) {
                         NotificationBadge(
                             count = unreadCount,
@@ -146,6 +154,8 @@ fun NotificationBadge(
                 .clip(CircleShape)
                 .background(Color.Red),
             contentAlignment = Alignment.Center
-        ){}
+        ){
+
+        }
     }
 }

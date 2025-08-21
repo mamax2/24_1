@@ -124,14 +124,13 @@ class NotificationViewModel(
         loadNotifications()
     }
 
-    // Convert NotificationEntity to your UI model
     fun mapToUINotification(entity: NotificationEntity): com.example.a24.ui.screens.AppNotification {
         return com.example.a24.ui.screens.AppNotification(
             id = entity.id,
             type = try {
                 NotificationType.valueOf(entity.type)
             } catch (e: Exception) {
-                NotificationType.SYSTEM
+                NotificationType.APP
             },
             title = entity.title,
             message = entity.message,

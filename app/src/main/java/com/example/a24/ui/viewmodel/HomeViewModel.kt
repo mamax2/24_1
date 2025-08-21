@@ -28,10 +28,45 @@ class HomeViewModel(
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
+    private val _showNotificationPopup = MutableStateFlow<com.example.a24.ui.screens.AppNotification?>(null)
+    val showNotificationPopup: StateFlow<com.example.a24.ui.screens.AppNotification?> = _showNotificationPopup.asStateFlow()
+
     private val auth = FirebaseAuth.getInstance()
 
     init {
         loadHomeData()
+        observeNewNotifications()
+    }
+
+    private fun observeNewNotifications() {
+        val userId = auth.currentUser?.uid ?: return
+
+        viewModelScope.launch {
+            repository.getUnreadNotifications(userId)
+                .collect { notifications ->
+                    if (notifications.isNotEmpty()) {
+                        val latest = notifications.first()
+
+                        val appNotification = com.example.a24.ui.screens.AppNotification(
+                            id = latest.id,
+                            type = try {
+                                com.example.a24.ui.screens.NotificationType.valueOf(latest.type)
+                            } catch (e: Exception) {
+                                com.example.a24.ui.screens.NotificationType.APP
+                            },
+                            title = latest.title,
+                            message = latest.message,
+                            timestamp = java.util.Date(latest.timestamp),
+                            isRead = latest.isRead,
+                            actionText = latest.actionText
+                        )
+
+                        if (!appNotification.isRead) {
+                            _showNotificationPopup.value = appNotification
+                        }
+                    }
+                }
+        }
     }
 
     private fun loadHomeData() {
@@ -151,37 +186,16 @@ class HomeViewModel(
         _uiState.value = _uiState.value.copy(errorMessage = null)
     }
 
-    fun addSampleActivities() {
-        val userId = auth.currentUser?.uid ?: return
+    fun dismissNotificationPopup() {
+        _showNotificationPopup.value = null
+    }
 
+    fun markNotificationAsReadAndDismiss(notificationId: String) {
         viewModelScope.launch {
-            try {
-                val sampleActivities = listOf(
-                    Triple("Morning Exercise", "30 min workout at the gym", "Via Roma 123, Milan"),
-                    Triple("Read a Book", "Read for 1 hour at the library", "Biblioteca Centrale, Bologna"),
-                    Triple("Healthy Meal", "Prepare nutritious lunch at home", null),
-                    Triple("Learn Something New", "Study for 45 minutes", "University Campus")
-                )
-
-                sampleActivities.forEach { (title, description, address) ->
-                    repository.addActivity(
-                        userId = userId,
-                        title = title,
-                        description = description,
-                        category = "today",
-                        priority = 1,
-                        address = address
-                    )
-                }
-
-                // Ricarica i dati
-                refreshData()
-
-            } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    errorMessage = "Error adding sample activities: ${e.message}"
-                )
-            }
+            repository.markAsRead(notificationId)
+            _showNotificationPopup.value = null
         }
     }
+
+
 }
