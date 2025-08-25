@@ -156,10 +156,7 @@ fun Log(navController: NavHostController) {
 
                                                 repository.createInitialNotifications(firebaseUser.uid)
 
-                                                notificationManager.sendSecurityNotification(
-                                                    userId = firebaseUser.uid,
-                                                    deviceInfo = "Android Device"
-                                                )
+
 
                                                 repository.updateUserLastActive(firebaseUser.uid)
                                             } catch (e: Exception) {

@@ -170,7 +170,6 @@ private fun getTypeDisplayName(type: NotificationType): String {
     return when (type) {
         NotificationType.ACHIEVEMENT -> "Achievement"
         NotificationType.APP -> "App"
-        NotificationType.SECURITY -> "Security"
         NotificationType.REMINDER -> "Reminder"
     }
 }

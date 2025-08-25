@@ -91,17 +91,7 @@ class NotificationManager(
         }
     }
 
-    fun sendSecurityNotification(userId: String, deviceInfo: String) {
-        scope.launch {
-            repository.createNotification(
-                userId = userId,
-                type = "SECURITY",
-                title = "🔐 New Login Detected",
-                message = "We detected a login from: $deviceInfo. If this wasn't you, please check your account security.",
-                actionText = "Review Security"
-            )
-        }
-    }
+
 
     fun sendAppUpdateNotification(userId: String, version: String) {
         scope.launch {

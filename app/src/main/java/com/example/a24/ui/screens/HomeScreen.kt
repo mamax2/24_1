@@ -85,9 +85,7 @@ fun HomeScreen(navController: NavHostController) {
                             com.example.a24.ui.screens.NotificationType.ACHIEVEMENT -> {
                                 navController.navigate("profile")
                             }
-                            com.example.a24.ui.screens.NotificationType.SECURITY -> {
-                                navController.navigate("profile")
-                            }
+
                             else -> {
                                 navController.navigate("notifications")
                             }
@@ -208,12 +206,10 @@ fun StatCard(title: String, value: String, color: Color) {
             .width(100.dp)
             .height(80.dp),
         colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.1f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(8.dp),
+                .fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -259,20 +255,6 @@ fun QuickActionsSection(viewModel: HomeViewModel) {
             Text("Add Activity")
         }
 
-        //Spacer(modifier = Modifier.width(8.dp))
-
-       /* Button(
-            onClick = { viewModel.addSampleActivities() },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF2196F3),
-                contentColor = Color.White
-            ),
-            modifier = Modifier.weight(1f)
-        ) {
-            Icon(Icons.Default.Refresh, contentDescription = "Add Sample")
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Add Sample")
-        }*/
     }
 
     if (showAddDialog) {
@@ -470,7 +452,7 @@ fun ActivityCard(
                     text = activity.title,
                     style = TextStyle(
                         fontFamily = displayFontFamily,
-                        fontSize = 16.sp,
+                        fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.Black
                     ),
@@ -507,7 +489,7 @@ fun ActivityCard(
                         Text(
                             text = activity.address,
                             style = TextStyle(
-                                fontSize = 12.sp,
+                                fontSize = 13.sp,
                                 color = primaryLight
                             ),
                             maxLines = 1,
@@ -530,15 +512,6 @@ fun ActivityCard(
                         )
                     )
 
-                    Spacer(modifier = Modifier.width(16.dp))
-
-                    Text(
-                        text = "Priority: ${activity.priority}",
-                        style = TextStyle(
-                            fontSize = 12.sp,
-                            color = Color(0xFF9E9E9E)
-                        )
-                    )
                 }
             }
 
@@ -589,16 +562,7 @@ fun EmptyState(onRefresh: () -> Unit) {
                     color = onPrimaryLight.copy(alpha = 0.6f)
                 )
             )
-            Spacer(modifier = Modifier.height(8.dp))
-            Button(
-                onClick = onRefresh,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = primaryContainerLightMediumContrast,
-                    contentColor = onPrimaryLightMediumContrast
-                )
-            ) {
-                Text("Add Sample Activities")
-            }
+
         }
     }
 }

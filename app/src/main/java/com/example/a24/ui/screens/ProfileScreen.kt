@@ -12,6 +12,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -75,6 +76,7 @@ fun ProfileScreen(navController: NavHostController) {
             modifier = Modifier.fillMaxSize()
         ) {
             AppBar(currentRoute = "profile", navController = navController)
+            Spacer(modifier = Modifier.height(16.dp))
             SectionHeader(text = "Profile")
             ProfileContent(navController)
         }
@@ -588,9 +590,7 @@ fun BadgeCard(
                 Color.Gray.copy(alpha = 0.05f)
             }
         ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = if (badge.isUnlocked) 6.dp else 2.dp
-        ),
+
         border = if (badge.isUnlocked) {
             BorderStroke(1.dp, badge.color.copy(alpha = 0.3f))
         } else {
@@ -599,8 +599,7 @@ fun BadgeCard(
     ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(8.dp),
+                .fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -636,7 +635,7 @@ fun BadgeCard(
 
             Text(
                 text = badge.name,
-                fontSize = 9.sp,
+                fontSize = 15.sp,
                 fontWeight = if (badge.isUnlocked) FontWeight.Bold else FontWeight.Normal,
                 color = if (badge.isUnlocked) badge.color else Color.Gray,
                 style = TextStyle(textAlign = TextAlign.Center),
@@ -646,7 +645,7 @@ fun BadgeCard(
             if (!badge.isUnlocked) {
                 Text(
                     text = "LOCKED",
-                    fontSize = 7.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = Color.Gray.copy(alpha = 0.6f),
                     style = TextStyle(textAlign = TextAlign.Center),
@@ -655,7 +654,7 @@ fun BadgeCard(
             } else {
                 Text(
                     text = "UNLOCKED",
-                    fontSize = 7.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = Color.Gray.copy(alpha = 0.8f),
                     style = TextStyle(textAlign = TextAlign.Center),

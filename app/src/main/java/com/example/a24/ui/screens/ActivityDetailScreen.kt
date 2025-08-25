@@ -259,10 +259,9 @@ private fun ActivityDetailBody(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    DetailRow("Category", activity.category.replaceFirstChar {
+                    DetailRow("When", activity.category.replaceFirstChar {
                         if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString()
                     })
-                    DetailRow("Priority", "Level ${activity.priority}")
                     DetailRow("Points", "${activity.points} pts")
                     DetailRow("Created", formatDate(activity.createdAt))
 
@@ -389,7 +388,7 @@ private fun LocationCard(
                         )
                         if (distanceToActivity != null) {
                             Text(
-                                text = "📍 Distance: ${formatDistance(distanceToActivity)}",
+                                text = "Distance: ${formatDistance(distanceToActivity)}",
                                 style = TextStyle(
                                     fontSize = 14.sp,
                                     color = primaryContainerLightMediumContrast,
@@ -449,35 +448,7 @@ private fun LocationCard(
                     }
                 }
 
-                if ((activity.latitude != null && activity.longitude != null || activity.address != null) &&
-                    currentLocation != null) {
-                    Button(
-                        onClick = {
-                            if (activity.latitude != null && activity.longitude != null) {
-                                locationManager.getDirections(
-                                    currentLocation.latitude,
-                                    currentLocation.longitude,
-                                    activity.latitude,
-                                    activity.longitude
-                                )
-                            } else {
-                                locationManager.getDirectionsToAddress(
-                                    currentLocation.latitude,
-                                    currentLocation.longitude,
-                                    activity.address!!
-                                )
-                            }
-                        },
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = tertiaryLight
-                        )
-                    ) {
-                        Icon(Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Directions", fontSize = 12.sp, color = Color.White)
-                    }
-                }
+                
             }
         }
     }

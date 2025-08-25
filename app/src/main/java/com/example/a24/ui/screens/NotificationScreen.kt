@@ -1,6 +1,7 @@
 package com.example.a24.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -46,7 +47,6 @@ import java.util.*
 enum class NotificationType {
     ACHIEVEMENT,    // Badge sbloccati
     APP,        // Aggiornamenti sistema
-    SECURITY,      // Login, sicurezza
     REMINDER,      // Promemoria daily login
 }
 
@@ -330,11 +330,8 @@ fun NotificationsContent(
                                             NotificationType.ACHIEVEMENT -> {
                                                 navController.navigate("profile")
                                             }
-                                            NotificationType.SECURITY -> {
-                                                navController.navigate("profile")
-                                            }
                                             else -> {
-                                                // Default action
+                                                navController.navigate("home")
                                             }
                                         }
                                     }
@@ -367,14 +364,19 @@ fun NotificationCard(
     onAction: (String) -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().border(
+            width = 1.dp,
+            color = Color.White,
+            shape = RoundedCornerShape(12.dp)
+        ),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (notification.isRead)
                 Color.White.copy(alpha = 0.7f)
             else
                 primaryContainerLightMediumContrast.copy(alpha = 0.3f)
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        )
+
     ) {
         Row(
             modifier = Modifier
@@ -465,8 +467,8 @@ fun NotificationCard(
                         Icon(
                             Icons.Default.Done,
                             contentDescription = "Mark as read",
-                            modifier = Modifier.size(12.dp),
-                            tint = Color(0xFF2196F3)
+                            modifier = Modifier.size(19.dp),
+                            tint = Color.White
                         )
                     }
                 }
@@ -546,7 +548,6 @@ fun getNotificationColor(type: NotificationType): Color {
     return when (type) {
         NotificationType.ACHIEVEMENT -> Color(0xFF4CAF50)
         NotificationType.APP -> Color(0xFF2196F3)
-        NotificationType.SECURITY -> Color(0xFFFF5722)
         NotificationType.REMINDER -> Color(0xFFFF9800)
     }
 }
@@ -555,7 +556,6 @@ fun getNotificationIcon(type: NotificationType): ImageVector {
     return when (type) {
         NotificationType.ACHIEVEMENT -> Icons.Default.Star
         NotificationType.APP -> Icons.Default.Info
-        NotificationType.SECURITY -> Icons.Default.Warning
         NotificationType.REMINDER -> Icons.Default.Notifications
     }
 }
@@ -564,7 +564,6 @@ fun getTypeDisplayName(type: NotificationType): String {
     return when (type) {
         NotificationType.ACHIEVEMENT -> "Achievements"
         NotificationType.APP -> "App"
-        NotificationType.SECURITY -> "Security"
         NotificationType.REMINDER -> "Reminders"
     }
 }
