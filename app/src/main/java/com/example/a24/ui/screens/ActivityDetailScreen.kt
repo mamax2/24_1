@@ -259,9 +259,7 @@ private fun ActivityDetailBody(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    DetailRow("When", activity.category.replaceFirstChar {
-                        if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString()
-                    })
+
                     DetailRow("Points", "${activity.points} pts")
                     DetailRow("Created", formatDate(activity.createdAt))
 
@@ -448,7 +446,7 @@ private fun LocationCard(
                     }
                 }
 
-                
+
             }
         }
     }
