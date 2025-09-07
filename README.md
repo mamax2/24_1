@@ -33,31 +33,6 @@
    ./gradlew assembleDebug
    ```
 
-## 📁 Struttura Progetto
-
-```
-app/src/main/java/com/example/a24/
-├── data/                          # Layer dati
-│   ├── entities/                  # Entità Room
-│   ├── dao/                       # Data Access Objects
-│   ├── database/                  # Setup database
-│   └── Repository.kt              # Repository dati
-├── ui/
-│   ├── screens/                   # Schermate app
-│   │   ├── HomeScreen.kt          # Feed attività principale
-│   │   ├── LoginScreen.kt         # Autenticazione
-│   │   ├── ProfileScreen.kt       # Profilo utente e badge
-│   │   └── NotificationScreen.kt  # Centro notifiche
-│   ├── composables/               # Componenti UI riusabili
-│   │   ├── AppBar.kt              # Barra navigazione superiore
-│   │   ├── BadgeCard.kt           # Badge achievement
-│   │   └── NotificationCard.kt    # Elementi notifica
-│   └── theme/                     # Temi app
-├── managers/                      # Logica business
-│   └── NotificationManager.kt     # Gestione notifiche
-└── MainActivity.kt                # Punto di ingresso app
-```
-
 ## 🎨 Sistema Design
 
 - **Linee guida Material Design 3**
