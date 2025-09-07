@@ -37,7 +37,6 @@ abstract class AppDatabase : RoomDatabase() {
         // Nuova migrazione per aggiungere campi di localizzazione
         val MIGRATION_2_3 = object : Migration(2, 3) {
             override fun migrate(database: SupportSQLiteDatabase) {
-                // Aggiungi le nuove colonne con valori di default NULL
                 database.execSQL("ALTER TABLE activities ADD COLUMN address TEXT DEFAULT NULL")
                 database.execSQL("ALTER TABLE activities ADD COLUMN latitude REAL DEFAULT NULL")
                 database.execSQL("ALTER TABLE activities ADD COLUMN longitude REAL DEFAULT NULL")
